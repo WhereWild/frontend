@@ -74,6 +74,8 @@ const SCHEME: StudyScheme = {
   colormap: 'coolwarm',
   bounds: 'global',
   observedLumSat: true,
+  distributionAware: false,
+  lumSatChannels: 'both',
   lumSatShape: 'sequential',
 };
 const UNITS = 'imperial';
@@ -103,7 +105,9 @@ export default function StudyPage() {
   // load time never counts against the participant.
   const readyMapsRef = React.useRef(new Set<string>());
   const startedAtRef = React.useRef<number | null>(null);
-  const clicksRef = React.useRef<{ tMs: number; catalogNumber: string }[]>([]);
+  const clicksRef = React.useRef<
+    { tMs: number; catalogNumber: string; deselected?: boolean }[]
+  >([]);
 
   const trial = index < trials.length ? trials[index] : null;
 
@@ -134,11 +138,25 @@ export default function StudyPage() {
     [trial],
   );
 
-  const handleSelect = React.useCallback((next: StudySelection) => {
+  const handleSelect = React.useCallback((next: StudySelection | null) => {
     // A click before the timer starts (maps not both ready) can't be timed.
     const startedAt = startedAtRef.current;
+    const tMs = startedAt != null ? Date.now() - startedAt : -1;
+    if (next == null) {
+      // Clearing removes the current selection, i.e. the last clicked dot.
+      const last = clicksRef.current[clicksRef.current.length - 1];
+      if (last) {
+        clicksRef.current.push({
+          tMs,
+          catalogNumber: last.catalogNumber,
+          deselected: true,
+        });
+      }
+      setSelection(null);
+      return;
+    }
     clicksRef.current.push({
-      tMs: startedAt != null ? Date.now() - startedAt : -1,
+      tMs,
       catalogNumber: next.selected.catalogNumber,
     });
     setSelection(next);
@@ -151,7 +169,9 @@ export default function StudyPage() {
     if (!trial) return;
     setSubmitError(null);
     const startedAt = startedAtRef.current;
-    const clicks = clicksRef.current;
+    const allClicks = clicksRef.current;
+    // Selections only; deselects stay in `clicks` but don't count as answers.
+    const clicks = allClicks.filter((c) => !c.deselected);
     try {
       const response = await fetch(`${BACKEND_BASE}/study/responses`, {
         method: 'POST',
@@ -185,7 +205,7 @@ export default function StudyPage() {
             timeToFinalClickMs: clicks[clicks.length - 1]?.tMs ?? null,
             elapsedMs: startedAt != null ? Date.now() - startedAt : null,
           },
-          clicks,
+          clicks: allClicks,
         }),
       });
       if (!response.ok) throw new Error(`Server responded ${response.status}`);

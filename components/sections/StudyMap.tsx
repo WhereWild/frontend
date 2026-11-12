@@ -14,9 +14,12 @@ import {
   type ExtremeTarget,
   type StudySelection,
 } from '@/components/sections/studyScoring';
+import { cdfAt, VARIABLE_CDFS } from '@/components/sections/studyDistributions';
 import {
   COOLWARM_STOPS,
   CUSTOM_BOUNDS_F,
+  DISTRIBUTION_STOP_COUNT,
+  equalizedStops,
   globalHueObservedLumSatStops,
   type StudyScheme,
 } from '@/components/sections/studyColors';
@@ -37,7 +40,10 @@ type StudyMapProps = {
    * "where is this species' habitat the <target>?" and reports it, scored
    * against the true extreme observation. */
   target?: ExtremeTarget;
-  onSelect?: (selection: StudySelection) => void;
+  /** Called with the new selection, or null when the participant clears it
+   * (clicking the selected dot's popup 'x' sends the same pin again, which
+   * the map expects to toggle the pin off). */
+  onSelect?: (selection: StudySelection | null) => void;
   /** Fires once the map has loaded AND this species' occurrences and values
    * have arrived — i.e. the participant can actually see and use the map. */
   onReady?: () => void;
@@ -125,6 +131,11 @@ export function StudyMap({
 
   const handlePin = React.useCallback(
     (catalogNumber: string, lat: number, lon: number) => {
+      if (selectedPoint?.catalogNumber === catalogNumber) {
+        setSelectedPoint(null);
+        if (target) onSelect?.(null);
+        return;
+      }
       setSelectedPoint({ lat, lon, catalogNumber });
       if (!target || !onSelect) return;
       onSelect(
@@ -139,7 +150,7 @@ export function StudyMap({
         ),
       );
     },
-    [target, onSelect, occurrences, observationValues],
+    [selectedPoint, target, onSelect, occurrences, observationValues],
   );
 
   const { renderMin, renderMax } = variable;
@@ -162,8 +173,27 @@ export function StudyMap({
             }
           : globalRange;
     if (!range) return null;
+    // Distribution-aware: position = the value's share of global area within
+    // `range` (needs this variable's CDF; falls back to linear without it).
+    const cdf = scheme.distributionAware ? VARIABLE_CDFS[variable.id] : null;
+    const toC = (v: number) => (units === 'metric' ? v : ((v - 32) * 5) / 9);
+    const position = cdf
+      ? (() => {
+          const lo = cdfAt(cdf, toC(range.min));
+          const span = cdfAt(cdf, toC(range.max)) - lo || 1;
+          return (v: number) => (cdfAt(cdf, toC(v)) - lo) / span;
+        })()
+      : null;
     if (!scheme.observedLumSat) {
-      return { ...stopsColormap(baseStops), min: range.min, max: range.max };
+      return {
+        ...stopsColormap(
+          position
+            ? equalizedStops(baseStops, range.min, range.max, position)
+            : baseStops,
+        ),
+        min: range.min,
+        max: range.max,
+      };
     }
     // Hue spans `range`; lightness/saturation span the observed range.
     if (!observedRange) return null;
@@ -176,12 +206,15 @@ export function StudyMap({
           observedMin: observedRange.min,
           observedMax: observedRange.max,
           shape: scheme.lumSatShape,
+          channels: scheme.lumSatChannels,
+          hueAtValue: position ?? undefined,
+          stopCount: position ? DISTRIBUTION_STOP_COUNT : undefined,
         }),
       ),
       min: observedRange.min,
       max: observedRange.max,
     };
-  }, [scheme, units, renderMin, renderMax, observedRange]);
+  }, [scheme, units, variable.id, renderMin, renderMax, observedRange]);
   // Once the map has been shown, keep it mounted with the last good colors
   // while a new scheme's inputs (e.g. a refetched range) are in flight —
   // unmounting would rebuild the whole map instead of recoloring it.

@@ -11,7 +11,13 @@ import { PageSurface } from '@/components/PageSurface';
 import { ThemedText } from '@/components/text/ThemedText';
 import { StudyMap } from '@/components/sections/StudyMap';
 import type { StudyScheme } from '@/components/sections/studyColors';
+import {
+  ParentTaxonSearchField,
+  type ParentTaxonSelection,
+} from '@/components/upload/ParentTaxonSearchField';
+import { Colors } from '@/constants/theme';
 import { fetchEnvironmentVariables } from '@/data/api';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import type { EnvironmentVariableDefinition } from '@/data/types';
 import { StyleSheet, View } from 'react-native';
 import React from 'react';
@@ -23,11 +29,10 @@ const VARIABLE_OPTIONS = [
 ];
 const MAP_HEIGHT = 480;
 
-const SPECIES = [
-  { taxonId: '6SRLS', label: 'Opuntia fragilis' },
-  { taxonId: '3ZLRB', label: 'Melocactus macracanthos' },
-  { taxonId: '74RNL', label: 'Opuntia polyacantha' },
-];
+const DEFAULT_SPECIES: ParentTaxonSelection = {
+  taxonId: '6SRLS',
+  label: 'Opuntia fragilis',
+};
 
 type Option<T extends string> = { value: T; label: string };
 
@@ -41,6 +46,14 @@ const BOUNDS_OPTIONS: Option<StudyScheme['bounds']>[] = [
   { value: 'custom', label: 'Custom (-10 to 80 °F)' },
   { value: 'custom2', label: 'Custom 2 (10 to 70 °F)' },
 ];
+const DISTRIBUTION_OPTIONS: Option<'on' | 'off'>[] = [
+  { value: 'off', label: 'Off (linear)' },
+  { value: 'on', label: 'On (equal-area)' },
+];
+const LUM_SAT_CHANNEL_OPTIONS: Option<StudyScheme['lumSatChannels']>[] = [
+  { value: 'both', label: 'Luminance + saturation' },
+  { value: 'saturation', label: 'Saturation only' },
+];
 const LUM_SAT_SHAPE_OPTIONS: Option<StudyScheme['lumSatShape']>[] = [
   { value: 'sequential', label: 'Sequential (observed min → max)' },
   { value: 'diverging', label: 'Diverging (from midpoint of Bounds)' },
@@ -53,7 +66,6 @@ const LUM_SAT_OPTIONS: Option<'on' | 'off'>[] = [
   { value: 'off', label: 'Off' },
   { value: 'on', label: 'On' },
 ];
-const COMPARE_NONE = 'none';
 
 type OptionRowProps<T extends string> = {
   title: string;
@@ -91,12 +103,20 @@ export default function StudyDebugPage() {
     colormap: 'coolwarm',
     bounds: 'global',
     observedLumSat: false,
+    distributionAware: false,
+    lumSatChannels: 'both',
     lumSatShape: 'sequential',
   });
   const [units, setUnits] = React.useState<'imperial' | 'metric'>('imperial');
   const [variableId, setVariableId] = React.useState(VARIABLE_OPTIONS[0].value);
-  const [taxonId, setTaxonId] = React.useState(SPECIES[0].taxonId);
-  const [compareId, setCompareId] = React.useState<string>(COMPARE_NONE);
+  const [species, setSpecies] = React.useState<ParentTaxonSelection | null>(
+    DEFAULT_SPECIES,
+  );
+  const [compare, setCompare] = React.useState<ParentTaxonSelection | null>(
+    null,
+  );
+  const colorScheme = useColorScheme();
+  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
   // The variable (whose bounds are in `units`) and the units it was fetched
   // for change together, and the old pair stays until the new one arrives, so
   // the maps keep their state and a units switch never pairs new-unit values
@@ -119,11 +139,9 @@ export default function StudyDebugPage() {
   }, [units]);
 
   const variable = loaded?.variables.find((v) => v.id === variableId) ?? null;
-  const speciesOptions = SPECIES.map((s) => ({
-    value: s.taxonId,
-    label: s.label,
-  }));
-  const shown = [taxonId, ...(compareId === COMPARE_NONE ? [] : [compareId])];
+  const shown = [species, compare].filter(
+    (s): s is ParentTaxonSelection => s != null,
+  );
 
   return (
     <PageSurface>
@@ -148,11 +166,27 @@ export default function StudyDebugPage() {
             onChange={(bounds) => setScheme((s) => ({ ...s, bounds }))}
           />
           <OptionRow
+            title='Distribution-aware (color share proportional to global area)'
+            options={DISTRIBUTION_OPTIONS}
+            value={scheme.distributionAware ? 'on' : 'off'}
+            onChange={(v) =>
+              setScheme((s) => ({ ...s, distributionAware: v === 'on' }))
+            }
+          />
+          <OptionRow
             title='Observed luminance/saturation (hue from Bounds)'
             options={LUM_SAT_OPTIONS}
             value={scheme.observedLumSat ? 'on' : 'off'}
             onChange={(v) =>
               setScheme((s) => ({ ...s, observedLumSat: v === 'on' }))
+            }
+          />
+          <OptionRow
+            title='Channels varied (when the above is On)'
+            options={LUM_SAT_CHANNEL_OPTIONS}
+            value={scheme.lumSatChannels}
+            onChange={(lumSatChannels) =>
+              setScheme((s) => ({ ...s, lumSatChannels }))
             }
           />
           <OptionRow
@@ -169,27 +203,28 @@ export default function StudyDebugPage() {
             value={units}
             onChange={setUnits}
           />
-          <OptionRow
-            title='Species'
-            options={speciesOptions}
-            value={taxonId}
-            onChange={setTaxonId}
-          />
-          <OptionRow
-            title='Compare with (side by side)'
-            options={[
-              { value: COMPARE_NONE, label: 'None' },
-              ...speciesOptions,
-            ]}
-            value={compareId}
-            onChange={setCompareId}
-          />
+          <View style={styles.row}>
+            <ThemedText>Species (search)</ThemedText>
+            <ParentTaxonSearchField
+              value={species}
+              onChange={setSpecies}
+              palette={palette}
+            />
+          </View>
+          <View style={styles.row}>
+            <ThemedText>Compare with (side by side; search)</ThemedText>
+            <ParentTaxonSearchField
+              value={compare}
+              onChange={setCompare}
+              palette={palette}
+            />
+          </View>
           {loaded && variable ? (
             <View style={styles.maps}>
-              {shown.map((id, i) => (
+              {shown.map((s, i) => (
                 <StudyMap
-                  key={`${i}-${id}`}
-                  taxonId={id}
+                  key={`${i}-${s.taxonId}`}
+                  taxonId={s.taxonId}
                   variable={variable}
                   units={loaded.units}
                   height={MAP_HEIGHT}

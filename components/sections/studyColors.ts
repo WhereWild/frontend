@@ -48,6 +48,12 @@ export const CUSTOM_BOUNDS_F = {
  *   (`custom` -10..80, `custom2` 10..70; see CUSTOM_BOUNDS_F)
  * - observedLumSat: keep `bounds` for hue but let lightness/saturation span
  *   the species' observed range (see the module comment above)
+ * - distributionAware: position on the color scale is the value's cumulative
+ *   share of global area (area-weighted CDF, see studyDistributions.ts)
+ *   within the chosen `bounds`, instead of linear in the value — so a
+ *   temperature range holding 5x the area gets 5x the color
+ * - lumSatChannels: which channels the observed range drives — `both`
+ *   (lightness and saturation) or `saturation` only (lightness held constant)
  * - lumSatShape: how lightness/saturation run over that range — `sequential`
  *   (pale at the observed min -> vivid at the max) or `diverging` (intensity
  *   grows with distance from the center of `bounds` — the average of its min
@@ -58,16 +64,24 @@ export type StudyScheme = {
   colormap: 'coolwarm' | 'viridis';
   bounds: 'global' | 'observed' | 'custom' | 'custom2';
   observedLumSat: boolean;
+  distributionAware: boolean;
+  lumSatChannels: 'both' | 'saturation';
   lumSatShape: 'sequential' | 'diverging';
 };
 
 // Observed min -> pale/muted, observed max -> dark/vivid. Tweak to taste.
 const LIGHTNESS_AT_OBSERVED_MIN = 0.85;
 const LIGHTNESS_AT_OBSERVED_MAX = 0.4;
+// Constant lightness when only saturation varies: the midpoint of the above.
+const LIGHTNESS_SATURATION_ONLY =
+  (LIGHTNESS_AT_OBSERVED_MIN + LIGHTNESS_AT_OBSERVED_MAX) / 2;
 const SATURATION_AT_OBSERVED_MIN = 0.3;
 const SATURATION_AT_OBSERVED_MAX = 0.95;
 // Unique legend offsets need whole-percent spacing, so 21 stops (every 5%).
 const STOP_COUNT = 21;
+// Finer ramp for the distribution-aware scale, whose color changes are
+// uneven (still whole-percent legend offsets, so at most 101 stops).
+export const DISTRIBUTION_STOP_COUNT = 101;
 
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
@@ -134,7 +148,39 @@ export type GlobalHueObservedLumSatInput = {
   observedMin: number;
   observedMax: number;
   shape: StudyScheme['lumSatShape'];
+  channels: StudyScheme['lumSatChannels'];
+  /** Maps a value to its 0..1 hue position (default: linear over the global
+   * range). */
+  hueAtValue?: (value: number) => number;
+  stopCount?: number;
 };
+
+/** Linearly interpolated color of `stops` at position t in [0,1]. */
+export const sampleStops = (stops: RGB[], t: number): RGB => {
+  const pos = clamp01(t) * (stops.length - 1);
+  const lo = Math.floor(pos);
+  const hi = Math.min(lo + 1, stops.length - 1);
+  const f = pos - lo;
+  return [0, 1, 2].map((c) =>
+    Math.round(stops[lo][c] + f * (stops[hi][c] - stops[lo][c])),
+  ) as RGB;
+};
+
+/** Distribution-aware ramp (low -> high over [min, max]): stop i's color is
+ * `stops` sampled at position(value_i), with stops evenly spaced in value, so
+ * the map's linear value->stop lookup reproduces the equalized scale. */
+export const equalizedStops = (
+  stops: RGB[],
+  min: number,
+  max: number,
+  position: (value: number) => number,
+): RGB[] =>
+  Array.from({ length: DISTRIBUTION_STOP_COUNT }, (_, i) =>
+    sampleStops(
+      stops,
+      position(min + (i / (DISTRIBUTION_STOP_COUNT - 1)) * (max - min)),
+    ),
+  );
 
 /** Stops (low -> high over the OBSERVED range) for the scheme above. */
 export const globalHueObservedLumSatStops = ({
@@ -144,6 +190,9 @@ export const globalHueObservedLumSatStops = ({
   observedMin,
   observedMax,
   shape,
+  channels,
+  hueAtValue,
+  stopCount = STOP_COUNT,
 }: GlobalHueObservedLumSatInput): RGB[] => {
   const globalSpan = globalMax - globalMin || 1;
   const center = (globalMin + globalMax) / 2;
@@ -154,21 +203,26 @@ export const globalHueObservedLumSatStops = ({
   const farthest =
     Math.max(Math.abs(observedMin - anchor), Math.abs(observedMax - anchor)) ||
     1;
-  return Array.from({ length: STOP_COUNT }, (_, i) => {
-    const position = i / (STOP_COUNT - 1);
+  return Array.from({ length: stopCount }, (_, i) => {
+    const position = i / (stopCount - 1);
     const value = observedMin + position * (observedMax - observedMin);
     // 0 = least intense (pale/muted), 1 = most intense (dark/vivid).
     const local =
       shape === 'diverging'
         ? clamp01(Math.abs(value - anchor) / farthest)
         : position;
-    const hue = hueAt(globalStops, (value - globalMin) / globalSpan);
+    const hue = hueAt(
+      globalStops,
+      hueAtValue ? hueAtValue(value) : (value - globalMin) / globalSpan,
+    );
     const saturation =
       SATURATION_AT_OBSERVED_MIN +
       (SATURATION_AT_OBSERVED_MAX - SATURATION_AT_OBSERVED_MIN) * local;
     const lightness =
-      LIGHTNESS_AT_OBSERVED_MIN +
-      (LIGHTNESS_AT_OBSERVED_MAX - LIGHTNESS_AT_OBSERVED_MIN) * local;
+      channels === 'saturation'
+        ? LIGHTNESS_SATURATION_ONLY
+        : LIGHTNESS_AT_OBSERVED_MIN +
+          (LIGHTNESS_AT_OBSERVED_MAX - LIGHTNESS_AT_OBSERVED_MIN) * local;
     return hslToRgb(hue, saturation, lightness);
   });
 };
