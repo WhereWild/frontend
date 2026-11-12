@@ -26,6 +26,9 @@ const VARIABLE_OPTIONS = [
   { value: 'bio1', label: 'Annual mean temp (bio1)' },
   { value: 'bio5', label: 'Max temp of warmest month (bio5)' },
   { value: 'bio6', label: 'Min temp of coldest month (bio6)' },
+  { value: 'bio12', label: 'Annual mean precip (bio12)' },
+  { value: 'direct_sun', label: 'Direct sunlight' },
+  { value: 'scdur', label: 'Total snow duration (scdur)' },
 ];
 const MAP_HEIGHT = 480;
 
@@ -38,6 +41,7 @@ type Option<T extends string> = { value: T; label: string };
 
 const COLORMAPS_OPTIONS: Option<StudyScheme['colormap']>[] = [
   { value: 'coolwarm', label: 'Coolwarm' },
+  { value: 'thematic', label: 'Thematic (per variable)' },
   { value: 'viridis', label: 'Viridis' },
 ];
 const BOUNDS_OPTIONS: Option<StudyScheme['bounds']>[] = [

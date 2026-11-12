@@ -20,6 +20,8 @@ import {
   CUSTOM_BOUNDS_F,
   DISTRIBUTION_STOP_COUNT,
   equalizedStops,
+  TEMPERATURE_VARIABLE_IDS,
+  THEMATIC_STOPS,
   globalHueObservedLumSatStops,
   type StudyScheme,
 } from '@/components/sections/studyColors';
@@ -156,7 +158,11 @@ export function StudyMap({
   const { renderMin, renderMax } = variable;
   const colormap = React.useMemo(() => {
     const baseStops =
-      scheme.colormap === 'coolwarm' ? COOLWARM_STOPS : COLORMAPS.viridis.stops;
+      scheme.colormap === 'viridis'
+        ? COLORMAPS.viridis.stops
+        : scheme.colormap === 'thematic'
+          ? (THEMATIC_STOPS[variable.id] ?? COOLWARM_STOPS)
+          : COOLWARM_STOPS;
     const globalRange =
       renderMin != null && renderMax != null
         ? { min: renderMin, max: renderMax }
@@ -166,7 +172,8 @@ export function StudyMap({
     const range =
       scheme.bounds === 'observed'
         ? observedRange
-        : scheme.bounds === 'custom' || scheme.bounds === 'custom2'
+        : (scheme.bounds === 'custom' || scheme.bounds === 'custom2') &&
+            TEMPERATURE_VARIABLE_IDS.includes(variable.id)
           ? {
               min: fToDisplay(CUSTOM_BOUNDS_F[scheme.bounds].min),
               max: fToDisplay(CUSTOM_BOUNDS_F[scheme.bounds].max),

@@ -33,6 +33,36 @@ export const COOLWARM_STOPS: RGB[] = [
   [179, 3, 38],
 ];
 
+const hexToRgb = (hex: string): RGB => [
+  parseInt(hex.slice(1, 3), 16),
+  parseInt(hex.slice(3, 5), 16),
+  parseInt(hex.slice(5, 7), 16),
+];
+
+/** 16-stop straight RGB ramp from `low` to `high` (`#rrggbb`). */
+const twoColorStops = (low: string, high: string): RGB[] => {
+  const a = hexToRgb(low);
+  const b = hexToRgb(high);
+  return Array.from({ length: 16 }, (_, i) =>
+    [0, 1, 2].map((c) => Math.round(a[c] + (i / 15) * (b[c] - a[c]))),
+  ) as RGB[];
+};
+
+const BROWN = '#8b5a2b';
+
+/** Per-variable thematic ramps (the `thematic` colormap): a metaphor for what
+ * the variable is, low -> high. Variables absent here (the temperatures) use
+ * coolwarm under `thematic`. */
+export const THEMATIC_STOPS: Record<string, RGB[]> = {
+  scdur: twoColorStops(BROWN, '#ffffff'), // snow duration (days): brown -> white
+  bio12: twoColorStops(BROWN, '#1f6fe0'), // annual precipitation: brown -> blue
+  direct_sun: twoColorStops('#000000', '#ffe600'), // direct sunlight: black -> yellow
+};
+
+/** The variables whose values are temperatures, i.e. the only ones the fixed
+ * degrees-F `custom` / `custom2` bounds presets make sense for. */
+export const TEMPERATURE_VARIABLE_IDS = ['bio1', 'bio5', 'bio6'];
+
 /** The `custom` / `custom2` bounds presets, in °F (the study's variables are
  * all temperatures); converted to °C when the study is shown in metric. They
  * apply to whichever variable is shown, not per variable. */
@@ -42,7 +72,8 @@ export const CUSTOM_BOUNDS_F = {
 };
 
 /** One study color configuration — the experiment's independent variables.
- * - colormap: coolwarm vs plain viridis
+ * - colormap: coolwarm, plain viridis, or `thematic` (a per-variable
+ *   metaphor ramp, see THEMATIC_STOPS; temperatures stay coolwarm)
  * - bounds: which value range the colormap spans — the variable's global
  *   render min/max, the species' own observed range, or a fixed °F preset
  *   (`custom` -10..80, `custom2` 10..70; see CUSTOM_BOUNDS_F)
@@ -61,7 +92,7 @@ export const CUSTOM_BOUNDS_F = {
  *   both extremes, while one entirely on one side of it runs sequentially
  *   away from the center) */
 export type StudyScheme = {
-  colormap: 'coolwarm' | 'viridis';
+  colormap: 'coolwarm' | 'viridis' | 'thematic';
   bounds: 'global' | 'observed' | 'custom' | 'custom2';
   observedLumSat: boolean;
   distributionAware: boolean;
