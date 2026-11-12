@@ -24,6 +24,7 @@ import { Button, PageScrollContainer } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { ThemedText } from '@/components/text/ThemedText';
 import { StudyMap } from '@/components/sections/StudyMap';
+import type { StudyScheme } from '@/components/sections/studyColors';
 import type {
   ExtremeTarget,
   StudySelection,
@@ -69,10 +70,11 @@ const JUXTAPOSE_TRIALS: StudyTrial[] = [
 ];
 
 const VARIABLE_ID = 'bio1';
-const CONDITIONS = {
-  colormapOverride: true,
-  globalBounds: true,
+const SCHEME: StudyScheme = {
+  colormap: 'coolwarm',
+  bounds: 'global',
   observedLumSat: true,
+  lumSatShape: 'sequential',
 };
 const UNITS = 'imperial';
 const MAP_HEIGHT = 480;
@@ -165,7 +167,7 @@ export default function StudyPage() {
           })),
           variable: VARIABLE_ID,
           units: UNITS,
-          conditions: CONDITIONS,
+          conditions: SCHEME,
           question: trial.question
             ? { id: 'habitat-extreme', target: trial.question.target }
             : null,
@@ -219,7 +221,7 @@ export default function StudyPage() {
                       taxonId={s.taxonId}
                       variable={variable}
                       units={UNITS}
-                      observedLumSat={CONDITIONS.observedLumSat}
+                      scheme={SCHEME}
                       height={MAP_HEIGHT}
                       target={trial.question?.target}
                       onSelect={handleSelect}

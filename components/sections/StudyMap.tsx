@@ -4,14 +4,22 @@
 
 import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
-import { stopsColormap } from '@/components/sections/speciesOccurrenceMap/variableColors';
+import {
+  COLORMAPS,
+  stopsColormap,
+} from '@/components/sections/speciesOccurrenceMap/variableColors';
 import {
   findTruth,
   scoreSelection,
   type ExtremeTarget,
   type StudySelection,
 } from '@/components/sections/studyScoring';
-import { globalHueObservedLumSatStops } from '@/components/sections/studyColors';
+import {
+  COOLWARM_STOPS,
+  CUSTOM_BOUNDS_F,
+  globalHueObservedLumSatStops,
+  type StudyScheme,
+} from '@/components/sections/studyColors';
 import { BACKEND_BASE } from '@/data/apiShared';
 import type { EnvironmentVariableDefinition } from '@/data/types';
 import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
@@ -23,10 +31,8 @@ type StudyMapProps = {
   variable: EnvironmentVariableDefinition;
   units: string;
   height: number;
-  /** Keep the global range for hue but let lightness/saturation span the
-   * species' own observed range (see studyColors.ts). Off: the plain global
-   * catalog colormap. */
-  observedLumSat?: boolean;
+  /** Color configuration for the dots and legend (see StudyScheme). */
+  scheme: StudyScheme;
   /** When set, clicking a dot records it as the participant's answer to
    * "where is this species' habitat the <target>?" and reports it, scored
    * against the true extreme observation. */
@@ -38,15 +44,15 @@ type StudyMapProps = {
 };
 
 /** One species' occurrence map for the visualization study: dots colored by
- * `variable` using its catalog colormap override and its catalog render
- * min/max (global bounds), with a legend. Renders nothing until the variable
- * carries both. */
+ * `variable` according to `scheme`, with a legend. Renders nothing until the
+ * data the scheme needs (e.g. the variable's catalog bounds, the species'
+ * observed range) is available. */
 export function StudyMap({
   taxonId,
   variable,
   units,
   height,
-  observedLumSat = false,
+  scheme,
   target,
   onSelect,
   onReady,
@@ -136,35 +142,53 @@ export function StudyMap({
     [target, onSelect, occurrences, observationValues],
   );
 
-  const { renderMin, renderMax, colormapOverride } = variable;
+  const { renderMin, renderMax } = variable;
   const colormap = React.useMemo(() => {
-    if (renderMin == null || renderMax == null || !colormapOverride) {
-      return null;
+    const baseStops =
+      scheme.colormap === 'coolwarm' ? COOLWARM_STOPS : COLORMAPS.viridis.stops;
+    const globalRange =
+      renderMin != null && renderMax != null
+        ? { min: renderMin, max: renderMax }
+        : null;
+    const fToDisplay = (f: number) =>
+      units === 'metric' ? ((f - 32) * 5) / 9 : f;
+    const range =
+      scheme.bounds === 'observed'
+        ? observedRange
+        : scheme.bounds === 'custom' || scheme.bounds === 'custom2'
+          ? {
+              min: fToDisplay(CUSTOM_BOUNDS_F[scheme.bounds].min),
+              max: fToDisplay(CUSTOM_BOUNDS_F[scheme.bounds].max),
+            }
+          : globalRange;
+    if (!range) return null;
+    if (!scheme.observedLumSat) {
+      return { ...stopsColormap(baseStops), min: range.min, max: range.max };
     }
-    if (!observedLumSat) {
-      return {
-        ...stopsColormap(colormapOverride.stops),
-        min: renderMin,
-        max: renderMax,
-      };
-    }
-    // Needs the species' observed range; hold the dots until it arrives.
+    // Hue spans `range`; lightness/saturation span the observed range.
     if (!observedRange) return null;
     return {
       ...stopsColormap(
         globalHueObservedLumSatStops({
-          globalStops: colormapOverride.stops,
-          globalMin: renderMin,
-          globalMax: renderMax,
+          globalStops: baseStops,
+          globalMin: range.min,
+          globalMax: range.max,
           observedMin: observedRange.min,
           observedMax: observedRange.max,
+          shape: scheme.lumSatShape,
         }),
       ),
       min: observedRange.min,
       max: observedRange.max,
     };
-  }, [renderMin, renderMax, colormapOverride, observedLumSat, observedRange]);
-  if (!colormap) return null;
+  }, [scheme, units, renderMin, renderMax, observedRange]);
+  // Once the map has been shown, keep it mounted with the last good colors
+  // while a new scheme's inputs (e.g. a refetched range) are in flight —
+  // unmounting would rebuild the whole map instead of recoloring it.
+  const lastColormapRef = React.useRef(colormap);
+  if (colormap) lastColormapRef.current = colormap;
+  const activeColormap = colormap ?? lastColormapRef.current;
+  if (!activeColormap) return null;
 
   return (
     <View style={styles.wrap}>
@@ -175,22 +199,25 @@ export function StudyMap({
         error={error}
         height={height}
         minZoom={0}
+        // Recolor dots via the map's live update message instead of
+        // rebuilding the whole map when the scheme/values change.
+        preserveMapPosition
         enableBasemapModeToggle={false}
         onMapReady={handleMapReady}
         onPinObservation={handlePin}
         selectedPoint={selectedPoint}
         observationValues={observationValues}
         variableDataLoading={observationValues == null}
-        dotMin={colormap.min}
-        dotMax={colormap.max}
-        gradientStops={colormap.stops}
+        dotMin={activeColormap.min}
+        dotMax={activeColormap.max}
+        gradientStops={activeColormap.stops}
         varUnits={variable.units ?? null}
       />
       <MapVariableLegend
-        min={colormap.min}
-        max={colormap.max}
+        min={activeColormap.min}
+        max={activeColormap.max}
         units={variable.units}
-        barSvgStops={colormap.barSvgStops}
+        barSvgStops={activeColormap.barSvgStops}
       />
     </View>
   );

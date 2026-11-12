@@ -12,6 +12,55 @@
 
 type RGB = [number, number, number];
 
+/** matplotlib's coolwarm sampled at 16 even stops (low -> high) — the study's
+ * colormap for any temperature variable, whether or not the catalog pins it. */
+export const COOLWARM_STOPS: RGB[] = [
+  [58, 76, 192],
+  [78, 105, 216],
+  [100, 133, 235],
+  [123, 158, 248],
+  [146, 180, 254],
+  [170, 198, 253],
+  [192, 211, 245],
+  [211, 219, 230],
+  [229, 216, 208],
+  [241, 202, 182],
+  [246, 183, 156],
+  [245, 160, 129],
+  [237, 132, 103],
+  [223, 100, 79],
+  [204, 63, 57],
+  [179, 3, 38],
+];
+
+/** The `custom` / `custom2` bounds presets, in °F (the study's variables are
+ * all temperatures); converted to °C when the study is shown in metric. They
+ * apply to whichever variable is shown, not per variable. */
+export const CUSTOM_BOUNDS_F = {
+  custom: { min: -10, max: 80 },
+  custom2: { min: 10, max: 70 },
+};
+
+/** One study color configuration — the experiment's independent variables.
+ * - colormap: coolwarm vs plain viridis
+ * - bounds: which value range the colormap spans — the variable's global
+ *   render min/max, the species' own observed range, or a fixed °F preset
+ *   (`custom` -10..80, `custom2` 10..70; see CUSTOM_BOUNDS_F)
+ * - observedLumSat: keep `bounds` for hue but let lightness/saturation span
+ *   the species' observed range (see the module comment above)
+ * - lumSatShape: how lightness/saturation run over that range — `sequential`
+ *   (pale at the observed min -> vivid at the max) or `diverging` (intensity
+ *   grows with distance from the center of `bounds` — the average of its min
+ *   and max — so a species straddling the center is pale there and vivid at
+ *   both extremes, while one entirely on one side of it runs sequentially
+ *   away from the center) */
+export type StudyScheme = {
+  colormap: 'coolwarm' | 'viridis';
+  bounds: 'global' | 'observed' | 'custom' | 'custom2';
+  observedLumSat: boolean;
+  lumSatShape: 'sequential' | 'diverging';
+};
+
 // Observed min -> pale/muted, observed max -> dark/vivid. Tweak to taste.
 const LIGHTNESS_AT_OBSERVED_MIN = 0.85;
 const LIGHTNESS_AT_OBSERVED_MAX = 0.4;
@@ -84,6 +133,7 @@ export type GlobalHueObservedLumSatInput = {
   globalMax: number;
   observedMin: number;
   observedMax: number;
+  shape: StudyScheme['lumSatShape'];
 };
 
 /** Stops (low -> high over the OBSERVED range) for the scheme above. */
@@ -93,11 +143,25 @@ export const globalHueObservedLumSatStops = ({
   globalMax,
   observedMin,
   observedMax,
+  shape,
 }: GlobalHueObservedLumSatInput): RGB[] => {
   const globalSpan = globalMax - globalMin || 1;
+  const center = (globalMin + globalMax) / 2;
+  // The least-intense point: the center itself when the observed range
+  // contains it, otherwise the observed end nearest to it (so a one-sided
+  // species gets the full pale -> vivid sweep instead of all-vivid).
+  const anchor = Math.min(Math.max(center, observedMin), observedMax);
+  const farthest =
+    Math.max(Math.abs(observedMin - anchor), Math.abs(observedMax - anchor)) ||
+    1;
   return Array.from({ length: STOP_COUNT }, (_, i) => {
-    const local = i / (STOP_COUNT - 1);
-    const value = observedMin + local * (observedMax - observedMin);
+    const position = i / (STOP_COUNT - 1);
+    const value = observedMin + position * (observedMax - observedMin);
+    // 0 = least intense (pale/muted), 1 = most intense (dark/vivid).
+    const local =
+      shape === 'diverging'
+        ? clamp01(Math.abs(value - anchor) / farthest)
+        : position;
     const hue = hueAt(globalStops, (value - globalMin) / globalSpan);
     const saturation =
       SATURATION_AT_OBSERVED_MIN +
