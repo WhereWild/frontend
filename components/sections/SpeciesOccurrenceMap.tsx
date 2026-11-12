@@ -174,6 +174,8 @@ type SpeciesOccurrenceMapProps = {
   linkObservations?: boolean;
   allowPinObservations?: boolean;
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
+  /** Fires once the map document has loaded (and again after a rebuild). */
+  onMapReady?: () => void;
   selectedPoint?: { lat: number; lon: number; catalogNumber?: string } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
   // A full snapshot of currently-visible nominal classes, not an
@@ -338,6 +340,7 @@ export function SpeciesOccurrenceMap({
   linkObservations = true,
   allowPinObservations = true,
   onPinObservation,
+  onMapReady,
   selectedPoint = null,
   onBoundsChange,
   onTileClasses,
@@ -395,6 +398,9 @@ export function SpeciesOccurrenceMap({
   // onFullscreenToggle. Typed loosely since this only matters on web.
   const containerRef = React.useRef<View | null>(null);
   const [mapReady, setMapReady] = React.useState(false);
+  React.useEffect(() => {
+    if (mapReady) onMapReady?.();
+  }, [mapReady, onMapReady]);
   // getMapTileUrlTemplate() reads the basemap build date synchronously (for
   // cache-busting — see ensureBasemapBuildDateLoaded's doc comment) via a
   // module-level singleton fetched once, not per-component; this just forces

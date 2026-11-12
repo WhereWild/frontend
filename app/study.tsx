@@ -2,15 +2,20 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Visualization-study page (class project experiment). For each species in
-// STUDY_SPECIES, shows only that species' occurrence map colored by annual
-// mean temperature (bio1), asks the (TBD) questions, posts the answers to the
-// backend, then moves on to the next species.
+// Visualization-study page (class project experiment). Each trial shows one
+// species' occurrence map (or, in juxtapose mode, two side by side) colored by
+// annual mean temperature (bio1). A trial with a `question` asks "where is
+// this species' habitat the hottest/coldest?" — the participant clicks a dot
+// (which opens the existing popup and highlights it), then presses Next, which
+// posts the decision, its distance from the true extreme, and timing to the
+// backend.
 //
 // Conditions (the study's independent variables) are fixed for now:
 //   - catalog colormap override ON (bio1's coolwarm)
 //   - global bounds ON (the variable's catalog renderMin/renderMax rather than
 //     the species' observed range)
+//   - observed luminance/saturation ON (hue still from the global range; see
+//     studyColors.ts)
 //   - custom colormap_bounds (-10..80 F) OFF
 // The map shows plain basemap tiles (no variable heatmap) under the dots.
 // Assigning/rotating conditions per participant is not built yet.
@@ -19,6 +24,10 @@ import { Button, PageScrollContainer } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { ThemedText } from '@/components/text/ThemedText';
 import { StudyMap } from '@/components/sections/StudyMap';
+import type {
+  ExtremeTarget,
+  StudySelection,
+} from '@/components/sections/studyScoring';
 import { fetchEnvironmentVariables } from '@/data/api';
 import { BACKEND_BASE } from '@/data/apiShared';
 import type { EnvironmentVariableDefinition } from '@/data/types';
@@ -27,27 +36,54 @@ import { StyleSheet, View } from 'react-native';
 import React from 'react';
 
 type StudySpecies = { taxonId: string; label: string };
+type StudyTrial = {
+  species: StudySpecies[];
+  /** When set, the participant must click the species' hottest/coldest dot. */
+  question?: { target: ExtremeTarget };
+};
 
-// Placeholder lists — to be set by the study author. Each trial is the
-// species shown at once: one in the default mode, a pair side by side in
-// juxtapose mode (/study?mode=juxtapose).
-const SINGLE_TRIALS: StudySpecies[][] = [
-  [{ taxonId: '6SRLS', label: 'Opuntia fragilis' }],
-  [{ taxonId: '74RNL', label: 'Opuntia polyacantha' }],
+// Placeholder lists — to be set by the study author. Default mode: one species
+// per trial with the hottest/coldest question. Juxtapose mode
+// (/study?mode=juxtapose): a pair side by side; no question yet.
+const SINGLE_TRIALS: StudyTrial[] = [
+  {
+    species: [{ taxonId: '6SRLS', label: 'Opuntia fragilis' }],
+    question: { target: 'hottest' },
+  },
+  {
+    species: [{ taxonId: '3ZLRB', label: 'Melocactus macracanthos' }],
+    question: { target: 'hottest' },
+  },
+  {
+    species: [{ taxonId: '74RNL', label: 'Opuntia polyacantha' }],
+    question: { target: 'coldest' },
+  },
 ];
-const JUXTAPOSE_TRIALS: StudySpecies[][] = [
-  [
-    { taxonId: '6SRLS', label: 'Opuntia fragilis' },
-    { taxonId: '3ZLRB', label: 'Melocactus macracanthos' },
-  ],
+const JUXTAPOSE_TRIALS: StudyTrial[] = [
+  {
+    species: [
+      { taxonId: '6SRLS', label: 'Opuntia fragilis' },
+      { taxonId: '3ZLRB', label: 'Melocactus macracanthos' },
+    ],
+  },
 ];
 
 const VARIABLE_ID = 'bio1';
+const CONDITIONS = {
+  colormapOverride: true,
+  globalBounds: true,
+  observedLumSat: true,
+};
 const UNITS = 'imperial';
 const MAP_HEIGHT = 480;
 
 const newParticipantId = () =>
   `p_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+const formatSelection = (sel: StudySelection, units: string) =>
+  sel.selected.value != null
+    ? `Selected observation ${sel.selected.catalogNumber} (${sel.selected.value.toFixed(1)} ${units}).`
+    : `Selected observation ${sel.selected.catalogNumber}.`;
 
 export default function StudyPage() {
   const { mode } = useLocalSearchParams<{ mode?: string }>();
@@ -58,8 +94,14 @@ export default function StudyPage() {
   const [index, setIndex] = React.useState(0);
   const [variable, setVariable] =
     React.useState<EnvironmentVariableDefinition | null>(null);
+  const [selection, setSelection] = React.useState<StudySelection | null>(null);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
-  const shownAtRef = React.useRef(Date.now());
+
+  // Timing starts only once every map in the trial is loaded and usable, so
+  // load time never counts against the participant.
+  const readyMapsRef = React.useRef(new Set<string>());
+  const startedAtRef = React.useRef<number | null>(null);
+  const clicksRef = React.useRef<{ tMs: number; catalogNumber: string }[]>([]);
 
   const trial = index < trials.length ? trials[index] : null;
 
@@ -79,15 +121,35 @@ export default function StudyPage() {
     };
   }, []);
 
-  // Reset the per-trial timer whenever a new trial is shown.
-  React.useEffect(() => {
-    shownAtRef.current = Date.now();
-    setSubmitError(null);
-  }, [index]);
+  const markReady = React.useCallback(
+    (taxonId: string) => {
+      if (!trial || startedAtRef.current != null) return;
+      readyMapsRef.current.add(taxonId);
+      if (readyMapsRef.current.size >= trial.species.length) {
+        startedAtRef.current = Date.now();
+      }
+    },
+    [trial],
+  );
+
+  const handleSelect = React.useCallback((next: StudySelection) => {
+    // A click before the timer starts (maps not both ready) can't be timed.
+    const startedAt = startedAtRef.current;
+    clicksRef.current.push({
+      tMs: startedAt != null ? Date.now() - startedAt : -1,
+      catalogNumber: next.selected.catalogNumber,
+    });
+    setSelection(next);
+  }, []);
+
+  const needsAnswer = Boolean(trial?.question);
+  const canSubmit = !needsAnswer || selection != null;
 
   const submit = async () => {
     if (!trial) return;
     setSubmitError(null);
+    const startedAt = startedAtRef.current;
+    const clicks = clicksRef.current;
     try {
       const response = await fetch(`${BACKEND_BASE}/study/responses`, {
         method: 'POST',
@@ -97,18 +159,38 @@ export default function StudyPage() {
           participantId,
           mode: juxtapose ? 'juxtapose' : 'single',
           trialIndex: index,
-          species: trial.map((s) => ({
+          species: trial.species.map((s) => ({
             taxonId: s.taxonId,
             scientificName: s.label,
           })),
           variable: VARIABLE_ID,
-          conditions: { colormapOverride: true, globalBounds: true },
-          // TBD: the study's questions/answers go here.
-          answers: {},
-          elapsedMs: Date.now() - shownAtRef.current,
+          units: UNITS,
+          conditions: CONDITIONS,
+          question: trial.question
+            ? { id: 'habitat-extreme', target: trial.question.target }
+            : null,
+          answer: selection
+            ? {
+                selected: selection.selected,
+                truth: selection.truth,
+                valueDiff: selection.valueDiff,
+                distanceKm: selection.distanceKm,
+              }
+            : null,
+          timing: {
+            startedAt,
+            timeToFirstClickMs: clicks[0]?.tMs ?? null,
+            timeToFinalClickMs: clicks[clicks.length - 1]?.tMs ?? null,
+            elapsedMs: startedAt != null ? Date.now() - startedAt : null,
+          },
+          clicks,
         }),
       });
       if (!response.ok) throw new Error(`Server responded ${response.status}`);
+      readyMapsRef.current.clear();
+      startedAtRef.current = null;
+      clicksRef.current = [];
+      setSelection(null);
       setIndex((i) => i + 1);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to submit');
@@ -124,15 +206,24 @@ export default function StudyPage() {
           ) : (
             <>
               <ThemedText>{`${index + 1} of ${trials.length}`}</ThemedText>
+              {trial.question && (
+                <ThemedText>
+                  {`Where is this species' habitat the ${trial.question.target}? Click that dot on the map.`}
+                </ThemedText>
+              )}
               {variable ? (
                 <View style={styles.maps}>
-                  {trial.map((s) => (
+                  {trial.species.map((s) => (
                     <StudyMap
-                      key={s.taxonId}
+                      key={`${index}-${s.taxonId}`}
                       taxonId={s.taxonId}
                       variable={variable}
                       units={UNITS}
+                      observedLumSat={CONDITIONS.observedLumSat}
                       height={MAP_HEIGHT}
+                      target={trial.question?.target}
+                      onSelect={handleSelect}
+                      onReady={() => markReady(s.taxonId)}
                     />
                   ))}
                 </View>
@@ -140,9 +231,22 @@ export default function StudyPage() {
                 <ThemedText>Loading…</ThemedText>
               )}
               <View style={styles.questions}>
-                <ThemedText>Questions to be determined.</ThemedText>
+                {trial.question ? (
+                  <ThemedText>
+                    {selection
+                      ? `${formatSelection(selection, variable?.units ?? '')} Click another dot to change it, or press Next.`
+                      : 'No dot selected yet.'}
+                  </ThemedText>
+                ) : (
+                  <ThemedText>Questions to be determined.</ThemedText>
+                )}
                 {submitError && <ThemedText>{submitError}</ThemedText>}
-                <Button variant='primary' label='Next' onPress={submit} />
+                <Button
+                  variant='primary'
+                  label='Next'
+                  disabled={!canSubmit}
+                  onPress={submit}
+                />
               </View>
             </>
           )}
