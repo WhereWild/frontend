@@ -16,6 +16,7 @@ import {
   type ParentTaxonSelection,
 } from '@/components/upload/ParentTaxonSearchField';
 import { Colors } from '@/constants/theme';
+import { setMapDebug } from '@/components/sections/mapDebug';
 import { fetchEnvironmentVariables } from '@/data/api';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import type { EnvironmentVariableDefinition } from '@/data/types';
@@ -42,7 +43,7 @@ type Option<T extends string> = { value: T; label: string };
 const COLORMAPS_OPTIONS: Option<StudyScheme['colormap']>[] = [
   { value: 'coolwarm', label: 'Coolwarm' },
   { value: 'thematic', label: 'Thematic (per variable)' },
-  { value: 'viridis', label: 'Viridis' },
+  { value: 'magma', label: 'Magma' },
 ];
 const BOUNDS_OPTIONS: Option<StudyScheme['bounds']>[] = [
   { value: 'global', label: 'Global render min/max' },
@@ -67,6 +68,10 @@ const LUM_SAT_CHANNEL_OPTIONS: Option<StudyScheme['lumSatChannels']>[] = [
 const LUM_SAT_SHAPE_OPTIONS: Option<StudyScheme['lumSatShape']>[] = [
   { value: 'sequential', label: 'Sequential (observed min → max)' },
   { value: 'diverging', label: 'Diverging (from midpoint of Bounds)' },
+];
+const LEGEND_OPTIONS: Option<'colormap' | 'observed'>[] = [
+  { value: 'colormap', label: "Colormap's range" },
+  { value: 'observed', label: "Species' observed range" },
 ];
 const UNITS_OPTIONS: Option<'imperial' | 'metric'>[] = [
   { value: 'imperial', label: 'Imperial' },
@@ -109,6 +114,10 @@ function OptionRow<T extends string>({
 }
 
 export default function StudyDebugPage() {
+  React.useEffect(() => {
+    setMapDebug(true);
+    return () => setMapDebug(false);
+  }, []);
   const [scheme, setScheme] = React.useState<StudyScheme>({
     colormap: 'coolwarm',
     bounds: 'global',
@@ -118,6 +127,9 @@ export default function StudyDebugPage() {
     lumSatChannels: 'both',
     lumSatShape: 'sequential',
   });
+  const [legendRange, setLegendRange] = React.useState<'colormap' | 'observed'>(
+    'colormap',
+  );
   const [units, setUnits] = React.useState<'imperial' | 'metric'>('imperial');
   const [variableId, setVariableId] = React.useState(VARIABLE_OPTIONS[0].value);
   const [species, setSpecies] = React.useState<ParentTaxonSelection | null>(
@@ -215,6 +227,12 @@ export default function StudyDebugPage() {
             }
           />
           <OptionRow
+            title='Legend shows'
+            options={LEGEND_OPTIONS}
+            value={legendRange}
+            onChange={setLegendRange}
+          />
+          <OptionRow
             title='Units'
             options={UNITS_OPTIONS}
             value={units}
@@ -240,12 +258,13 @@ export default function StudyDebugPage() {
             <View style={styles.maps}>
               {shown.map((s, i) => (
                 <StudyMap
-                  key={`${i}-${s.taxonId}`}
+                  key={i}
                   taxonId={s.taxonId}
                   variable={variable}
                   units={loaded.units}
                   height={MAP_HEIGHT}
                   scheme={scheme}
+                  legendRange={legendRange}
                 />
               ))}
             </View>

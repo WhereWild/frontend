@@ -10,25 +10,26 @@
 // posts the decision, its distance from the true extreme, and timing to the
 // backend.
 //
-// Conditions (the study's independent variables) are fixed for now:
-//   - catalog colormap override ON (bio1's coolwarm)
-//   - global bounds ON (the variable's catalog renderMin/renderMax rather than
-//     the species' observed range)
-//   - observed luminance/saturation ON (hue still from the global range; see
-//     studyColors.ts)
-//   - custom colormap_bounds (-10..80 F) OFF
-// The map shows plain basemap tiles (no variable heatmap) under the dots.
-// Assigning/rotating conditions per participant is not built yet.
+// Default mode: each participant gets 4 trials (studyDesign.ts) - four
+// different species from the pool (one per entropy quartile), the four
+// colormap (magma/coolwarm) x bounds (observed/global) conditions once each,
+// and a hottest/coldest question (2 each), all randomized and seeded by the
+// participant id. Observations outside each species' map window are neither
+// shown nor scored (studyPool.ts). The map shows plain basemap tiles (no
+// variable heatmap) under the dots.
 
 import { Button, PageScrollContainer } from '@/components';
 import { PageSurface } from '@/components/PageSurface';
 import { ThemedText } from '@/components/text/ThemedText';
 import { StudyMap } from '@/components/sections/StudyMap';
 import type { StudyScheme } from '@/components/sections/studyColors';
+import { buildTrials, schemeFor } from '@/components/sections/studyDesign';
+import type { StudyViewBox } from '@/components/sections/studyPool';
 import type {
   ExtremeTarget,
   StudySelection,
 } from '@/components/sections/studyScoring';
+import { setMapDebug } from '@/components/sections/mapDebug';
 import { fetchEnvironmentVariables } from '@/data/api';
 import { BACKEND_BASE } from '@/data/apiShared';
 import type { EnvironmentVariableDefinition } from '@/data/types';
@@ -36,30 +37,20 @@ import { useLocalSearchParams } from 'expo-router';
 import { StyleSheet, View } from 'react-native';
 import React from 'react';
 
-type StudySpecies = { taxonId: string; label: string };
+type StudySpecies = { taxonId: string; label: string; viewBox?: StudyViewBox };
 type StudyTrial = {
   species: StudySpecies[];
   /** When set, the participant must click the species' hottest/coldest dot. */
   question?: { target: ExtremeTarget };
+  /** Color configuration; falls back to SCHEME. */
+  scheme?: StudyScheme;
+  /** Logged with the response (what the design assigned this trial). */
+  design?: Record<string, unknown>;
 };
 
-// Placeholder lists — to be set by the study author. Default mode: one species
-// per trial with the hottest/coldest question. Juxtapose mode
-// (/study?mode=juxtapose): a pair side by side; no question yet.
-const SINGLE_TRIALS: StudyTrial[] = [
-  {
-    species: [{ taxonId: '6SRLS', label: 'Opuntia fragilis' }],
-    question: { target: 'hottest' },
-  },
-  {
-    species: [{ taxonId: '3ZLRB', label: 'Melocactus macracanthos' }],
-    question: { target: 'hottest' },
-  },
-  {
-    species: [{ taxonId: '74RNL', label: 'Opuntia polyacantha' }],
-    question: { target: 'coldest' },
-  },
-];
+// Default mode: 4 single-species trials generated per participant (see
+// studyDesign.ts). Juxtapose mode (/study?mode=juxtapose): a placeholder pair
+// side by side; no question yet.
 const JUXTAPOSE_TRIALS: StudyTrial[] = [
   {
     species: [
@@ -70,6 +61,8 @@ const JUXTAPOSE_TRIALS: StudyTrial[] = [
 ];
 
 const VARIABLE_ID = 'bio1';
+// Color configuration for the juxtapose placeholder; the default mode assigns
+// each trial its own (see studyDesign.ts).
 const SCHEME: StudyScheme = {
   colormap: 'coolwarm',
   bounds: 'global',
@@ -91,11 +84,40 @@ const formatSelection = (sel: StudySelection, units: string) =>
     : `Selected observation ${sel.selected.catalogNumber}.`;
 
 export default function StudyPage() {
+  // Console logging for map debugging (see mapDebug.ts) while this page is up.
+  React.useEffect(() => {
+    setMapDebug(true);
+    return () => setMapDebug(false);
+  }, []);
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const juxtapose = mode === 'juxtapose';
-  const trials = juxtapose ? JUXTAPOSE_TRIALS : SINGLE_TRIALS;
-
   const participantId = React.useRef(newParticipantId()).current;
+  const trials = React.useMemo<StudyTrial[]>(
+    () =>
+      juxtapose
+        ? JUXTAPOSE_TRIALS
+        : buildTrials(participantId).map((t) => ({
+            species: [
+              {
+                taxonId: t.species.id,
+                label: t.species.name,
+                viewBox: t.species.viewBox,
+              },
+            ],
+            question: { target: t.target },
+            scheme: schemeFor(t.condition),
+            design: {
+              seed: participantId,
+              condition: t.condition,
+              entropy: t.species.entropy,
+              entropyQuartile: t.species.q,
+              spreadF: t.species.spreadF,
+              poolObservationCount: t.species.n,
+              viewBox: t.species.viewBox,
+            },
+          })),
+    [juxtapose, participantId],
+  );
   const [index, setIndex] = React.useState(0);
   const [variable, setVariable] =
     React.useState<EnvironmentVariableDefinition | null>(null);
@@ -111,6 +133,14 @@ export default function StudyPage() {
   >([]);
 
   const trial = index < trials.length ? trials[index] : null;
+  // Load the next couple of trials' data while this one is in progress.
+  const upcomingTaxonIds = React.useMemo(
+    () =>
+      trials
+        .slice(index + 1, index + 3)
+        .flatMap((t) => t.species.map((s) => s.taxonId)),
+    [trials, index],
+  );
 
   React.useEffect(() => {
     let cancelled = false;
@@ -188,7 +218,8 @@ export default function StudyPage() {
           })),
           variable: VARIABLE_ID,
           units: UNITS,
-          conditions: SCHEME,
+          conditions: trial.scheme ?? SCHEME,
+          design: trial.design ?? null,
           question: trial.question
             ? { id: 'habitat-extreme', target: trial.question.target }
             : null,
@@ -236,13 +267,18 @@ export default function StudyPage() {
               )}
               {variable ? (
                 <View style={styles.maps}>
-                  {trial.species.map((s) => (
+                  {trial.species.map((s, slot) => (
                     <StudyMap
-                      key={`${index}-${s.taxonId}`}
+                      // Keyed by slot, not species: the same map instance serves every
+                      // trial, so it isn't rebuilt (and its WebGL/tiles reloaded).
+                      key={slot}
                       taxonId={s.taxonId}
                       variable={variable}
                       units={UNITS}
-                      scheme={SCHEME}
+                      scheme={trial.scheme ?? SCHEME}
+                      legendRange='observed'
+                      viewBox={s.viewBox}
+                      prefetchTaxonIds={upcomingTaxonIds}
                       height={MAP_HEIGHT}
                       target={trial.question?.target}
                       onSelect={handleSelect}

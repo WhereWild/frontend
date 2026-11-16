@@ -354,6 +354,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           markerColor: displayColor,
           markerStroke: displayStroke,
           isNodata: isNodata,
+          valueOnly: pt.popupValueOnly === true,
           mediaUrl: pt.popupMediaUrl || '',
           mediaAttribution: pt.popupMediaAttribution || '',
           mediaLicense: pt.popupMediaLicense || '',
@@ -420,6 +421,45 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // lastAppliedSelectedPoint lets applySelectedPoint re-run for the
     // observation-pin case.
     var lastBackgroundPopup = null;
+
+    // Opt-in debug logging (localStorage.wwMapDebug = '1' on the parent page;
+    // see mapDebug.ts). Logs the camera, whether tiles/style are loaded and
+    // how many occurrence dots are actually being rendered, so a blank map
+    // can be told apart: dots missing vs basemap missing vs context lost.
+    function mapDebugEnabled() {
+      try { return window.parent.localStorage.getItem('wwMapDebug') === '1'; } catch (e) { return false; }
+    }
+    function mapDebugLog(label, extra) {
+      if (!mapDebugEnabled()) return;
+      var state = {};
+      try {
+        var c = map.getCenter();
+        var canvas = map.getCanvas();
+        var rendered = null;
+        if (typeof OCCURRENCE_LAYER_IDS !== 'undefined' && OCCURRENCE_LAYER_IDS && OCCURRENCE_LAYER_IDS.length) {
+          rendered = map.queryRenderedFeatures({ layers: OCCURRENCE_LAYER_IDS.filter(function(id) { return map.getLayer(id); }) }).length;
+        }
+        state = {
+          center: [+c.lng.toFixed(2), +c.lat.toFixed(2)],
+          zoom: +map.getZoom().toFixed(2),
+          moving: map.isMoving(),
+          loaded: map.loaded(),
+          tilesLoaded: map.areTilesLoaded(),
+          styleLoaded: map.isStyleLoaded(),
+          canvas: canvas.width + 'x' + canvas.height,
+          client: canvas.clientWidth + 'x' + canvas.clientHeight,
+          renderedDots: rendered,
+          points: typeof OCCURRENCE_POINTS !== 'undefined' && OCCURRENCE_POINTS ? OCCURRENCE_POINTS.length : null,
+          sourceLoaded: map.getSource('occurrences') ? map.isSourceLoaded('occurrences') : 'no source',
+          sourceFeatures: map.getSource('occurrences') ? map.querySourceFeatures('occurrences').length : null,
+          dotLayerVisibility: (typeof OCCURRENCE_LAYER_IDS !== 'undefined' && OCCURRENCE_LAYER_IDS && OCCURRENCE_LAYER_IDS.length && map.getLayer(OCCURRENCE_LAYER_IDS[0]))
+            ? map.getLayoutProperty(OCCURRENCE_LAYER_IDS[0], 'visibility') : null,
+          bounds: (function() { var b = map.getBounds(); return [+b.getWest().toFixed(1), +b.getSouth().toFixed(1), +b.getEast().toFixed(1), +b.getNorth().toFixed(1)]; })(),
+        };
+      } catch (e) { state = { stateError: String(e) }; }
+      for (var k in (extra || {})) state[k] = extra[k];
+      console.log('[map-debug:iframe]', Math.round(performance.now()), label, state);
+    }
 
     function clearSelectedPoint() {
       var source = map.getSource('selected-point');
@@ -499,7 +539,9 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       // nothing to do with whether this point actually has a photo; gating
       // the image on it silently dropped every photo for such points even
       // when popupMediaUrl was populated.
-      html += buildObservationMediaHtml(matchingPt.popupMediaUrl, matchingPt.popupMediaAttribution, matchingPt.popupMediaLicense, matchingPt.popupMediaLicenseUrl);
+      if (!matchingPt.popupValueOnly) {
+        html += buildObservationMediaHtml(matchingPt.popupMediaUrl, matchingPt.popupMediaAttribution, matchingPt.popupMediaLicense, matchingPt.popupMediaLicenseUrl);
+      }
       // focusAfterOpen defaults to true — calling .focus() on the popup DOM
       // node makes the browser natively scroll/snap the page to bring it
       // into view, which reads as the whole screen jumping. Not needed
@@ -1193,6 +1235,11 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
     }
 
     const map = new maplibregl.Map(mapOptions);
+    map.on('error', function(e) {
+      mapDebugLog('map error', { message: e && e.error && e.error.message, source: e && e.sourceId });
+    });
+    map.getCanvas().addEventListener('webglcontextlost', function() { mapDebugLog('WEBGL CONTEXT LOST'); });
+    map.getCanvas().addEventListener('webglcontextrestored', function() { mapDebugLog('webgl context restored'); });
 
     __GLOBE_RESIZE_OBSERVER_SCRIPT__
 
@@ -2398,6 +2445,7 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         positionMapForOccurrencePoints(validPoints);
 
         replaceOccurrencePointsImpl = function(newPoints, preserveViewport) {
+          mapDebugLog('replace:start', { newPoints: newPoints.length, preserveViewport: !!preserveViewport });
           var validNewPoints = newPoints.filter(function(pt) {
             return typeof pt.latitude === 'number' && typeof pt.longitude === 'number';
           });
@@ -2420,6 +2468,33 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
             positionMapForOccurrencePoints(validNewPoints);
           }
           updateClusterMode();
+          // A data swap plus a camera jump (jumpTo above) doesn't always
+          // schedule a render under globe projection, which left the map
+          // blank until the next pan (seen when the study page reuses one
+          // map across species). Force one after layout settles.
+          mapDebugLog('replace:synced');
+          requestAnimationFrame(function() {
+            map.resize();
+            map.triggerRepaint();
+            mapDebugLog('replace:raf');
+          });
+          if (mapDebugEnabled()) {
+            setTimeout(function() { mapDebugLog('replace:+300ms'); }, 300);
+            setTimeout(function() { mapDebugLog('replace:+1500ms'); }, 1500);
+          }
+          // Self-heal: if the map settles with points loaded but no dot drawn
+          // (the blank-until-pan state), a 1px pan makes it re-request the
+          // source's tiles for the current view, same as a manual pan does.
+          map.once('idle', function() {
+            mapDebugLog('replace:idle');
+            var ids = (typeof OCCURRENCE_LAYER_IDS !== 'undefined' && OCCURRENCE_LAYER_IDS || []).filter(function(id) { return map.getLayer(id); });
+            var individualShown = ids.length && map.getLayoutProperty(ids[0], 'visibility') !== 'none';
+            if (individualShown && OCCURRENCE_POINTS.length && map.queryRenderedFeatures({ layers: ids }).length === 0) {
+              mapDebugLog('replace:blank after idle -> nudging camera 1px');
+              map.panBy([1, 0], { duration: 0 });
+              setTimeout(function() { mapDebugLog('replace:after nudge'); }, 500);
+            }
+          });
         };
 
         function handleOccurrenceMarkerClick(e) {
@@ -2460,7 +2535,9 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
           // Same fix as the background-click popup above: media doesn't
           // depend on catalogLabel (empty for an auto-generated catalog
           // number), so it must not be gated on it either.
-          html += buildObservationMediaHtml(props.mediaUrl, props.mediaAttribution, props.mediaLicense, props.mediaLicenseUrl);
+          if (!props.valueOnly) {
+            html += buildObservationMediaHtml(props.mediaUrl, props.mediaAttribution, props.mediaLicense, props.mediaLicenseUrl);
+          }
           // Tracked into selectedPointPopup (not a local var) so the
           // sendPinMessage round-trip above — which lands back here shortly
           // as an applySelectedPoint(point) call for this same observation
@@ -2749,6 +2826,10 @@ const PORTS_GEOJSON = {"type":"FeatureCollection","features":[{"type":"Feature",
         try { data = JSON.parse(payload); } catch (e) { return; }
       }
       if (!data || !data.type) return;
+      mapDebugLog('msg ' + data.type, {
+        msgPoints: Array.isArray(data.points) ? data.points.length : undefined,
+        preserveViewport: data.preserveViewport,
+      });
 
       if (data.type === HIGHLIGHT_MESSAGE_TYPE) {
         applyHighlights(data.catalogs);

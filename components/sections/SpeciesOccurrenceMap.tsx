@@ -22,6 +22,7 @@ import {
 import type { ViewportTileRange } from '@/data/api';
 import type { SpeciesOccurrence } from '@/data/types';
 import { ThemedText } from '../text/ThemedText';
+import { mapDebugLog } from './mapDebug';
 import {
   buildGlobeHtml,
   buildLeafletHtml,
@@ -1126,6 +1127,9 @@ export function SpeciesOccurrenceMap({
   ]);
 
   React.useEffect(() => {
+    mapDebugLog('html changed -> mapReady=false (iframe/map rebuild)', {
+      htmlLength: html?.length ?? null,
+    });
     setMapReady(false);
   }, [html]);
 
@@ -1256,6 +1260,12 @@ export function SpeciesOccurrenceMap({
       classShapes,
       circularShapesEnabled,
     );
+    mapDebugLog('post pointStylesUpdate', {
+      points: updates.length,
+      dotMin,
+      dotMax,
+      stops: gradientStops?.length ?? null,
+    });
     const msg: Record<string, unknown> = {
       type: POINT_STYLES_UPDATE_MESSAGE_TYPE,
       points: updates,
@@ -1315,6 +1325,11 @@ export function SpeciesOccurrenceMap({
       classShapes,
       circularShapesEnabled,
     );
+    mapDebugLog('post pointsUpdate', {
+      points: newPoints.length,
+      refit: shouldRefit,
+      hasValues: observationValues != null,
+    });
     const msg = {
       type: POINTS_UPDATE_MESSAGE_TYPE,
       points: newPoints,

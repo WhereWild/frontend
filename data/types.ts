@@ -221,6 +221,9 @@ export type SpeciesOccurrence = {
   taxonId?: string | null;
   scientificName?: string | null;
   commonName?: string | null;
+  /** Marker popup shows only the variable's value: no observation number or
+   * link, photo, or attribution (the visualization study sets this). */
+  valueOnlyPopup?: boolean;
 };
 
 /** Result of GET /occurrence/{catalogNumber} — resolves an inat observation id to its taxon. */

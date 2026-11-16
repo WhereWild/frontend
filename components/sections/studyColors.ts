@@ -75,7 +75,7 @@ export const CUSTOM_BOUNDS_F = {
 };
 
 /** One study color configuration — the experiment's independent variables.
- * - colormap: coolwarm, plain viridis, or `thematic` (a per-variable
+ * - colormap: coolwarm, plain magma, or `thematic` (a per-variable
  *   metaphor ramp, see THEMATIC_STOPS; temperatures stay coolwarm)
  * - bounds: which value range the colormap spans — the variable's global
  *   render min/max, the species' own observed range, or a fixed °F preset
@@ -101,7 +101,7 @@ export const CUSTOM_BOUNDS_F = {
  *   both extremes, while one entirely on one side of it runs sequentially
  *   away from the center) */
 export type StudyScheme = {
-  colormap: 'coolwarm' | 'viridis' | 'thematic';
+  colormap: 'coolwarm' | 'magma' | 'thematic';
   bounds: 'global' | 'observed' | 'custom' | 'custom2';
   observedLumSat: boolean;
   distributionAware: boolean;

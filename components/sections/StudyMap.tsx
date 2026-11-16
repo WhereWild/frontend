@@ -17,6 +17,7 @@ import {
 import { cdfAt, VARIABLE_CDFS } from '@/components/sections/studyDistributions';
 import {
   COOLWARM_STOPS,
+  sampleStops,
   CUSTOM_BOUNDS_F,
   CENTER_F,
   DISTRIBUTION_STOP_COUNT,
@@ -26,9 +27,13 @@ import {
   globalHueObservedLumSatStops,
   type StudyScheme,
 } from '@/components/sections/studyColors';
-import { BACKEND_BASE } from '@/data/apiShared';
+import type { StudyViewBox } from '@/components/sections/studyPool';
 import type { EnvironmentVariableDefinition } from '@/data/types';
-import { useSpeciesOccurrences } from '@/hooks/species/useSpeciesOccurrences';
+import { mapDebugLog } from '@/components/sections/mapDebug';
+import { useStudyData } from '@/components/sections/useStudyData';
+import { ThemedText } from '@/components/text/ThemedText';
+import { Colors } from '@/constants/theme';
+import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
@@ -39,6 +44,13 @@ type StudyMapProps = {
   height: number;
   /** Color configuration for the dots and legend (see StudyScheme). */
   scheme: StudyScheme;
+  /** What range the legend shows: the colormap's own range (default), or
+   * just this species' observed range - the slice of the colormap its values
+   * actually fall in - while the dots keep the colormap's full range. */
+  legendRange?: 'colormap' | 'observed';
+  /** Geographic crop: only observations inside it are displayed, scored
+   * against, and used for the 'observed' bounds. */
+  viewBox?: StudyViewBox;
   /** When set, clicking a dot records it as the participant's answer to
    * "where is this species' habitat the <target>?" and reports it, scored
    * against the true extreme observation. */
@@ -50,6 +62,8 @@ type StudyMapProps = {
   /** Fires once the map has loaded AND this species' occurrences and values
    * have arrived — i.e. the participant can actually see and use the map. */
   onReady?: () => void;
+  /** Species to preload in the background (the upcoming trials). */
+  prefetchTaxonIds?: readonly string[];
 };
 
 /** One species' occurrence map for the visualization study: dots colored by
@@ -62,73 +76,89 @@ export function StudyMap({
   units,
   height,
   scheme,
+  legendRange = 'colormap',
+  viewBox,
   target,
   onSelect,
   onReady,
+  prefetchTaxonIds,
 }: StudyMapProps) {
-  const { occurrences, loading, error } = useSpeciesOccurrences({ taxonId });
+  const { data, error } = useStudyData({
+    taxonId,
+    variableId: variable.id,
+    units,
+    prefetch: prefetchTaxonIds,
+  });
+  const colorScheme = useColorScheme();
+  const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+  // `shown`: this taxon's data (cropped to its viewBox), once it has loaded.
+  const shown = React.useMemo(() => {
+    if (!data || data.taxonId !== taxonId) return null;
+    const inView = viewBox
+      ? data.occurrences.filter(
+          (o) =>
+            o.longitude >= viewBox.lonMin &&
+            o.longitude < viewBox.lonMax &&
+            o.latitude >= viewBox.latMin &&
+            o.latitude < viewBox.latMax,
+        )
+      : data.occurrences;
+    return {
+      values: data.values,
+      // Clicking a dot shows only its value - no observation number, photo
+      // or attribution (which would identify the species/observation).
+      occurrences: inView.map((o) => ({ ...o, valueOnlyPopup: true })),
+    };
+  }, [data, taxonId, viewBox]);
+  // The map stays mounted across species; until the next one loads it keeps
+  // the previous dots (hidden under a loading cover) instead of rebuilding.
+  const lastShownRef = React.useRef(shown);
+  if (shown) lastShownRef.current = shown;
+  const display = shown ?? lastShownRef.current;
+  const stale = shown == null;
+  const occurrences = React.useMemo(
+    () => display?.occurrences ?? [],
+    [display],
+  );
+  const observationValues = display?.values ?? null;
   const [mapLoaded, setMapLoaded] = React.useState(false);
-  const [observedRange, setObservedRange] = React.useState<{
-    min: number;
-    max: number;
-  } | null>(null);
   const [selectedPoint, setSelectedPoint] = React.useState<{
     lat: number;
     lon: number;
     catalogNumber: string;
   } | null>(null);
-  const [observationValues, setObservationValues] = React.useState<Map<
-    string,
-    number
-  > | null>(null);
 
+  // A new species starts with nothing selected.
   React.useEffect(() => {
-    setObservationValues(null);
-    setObservedRange(null);
-    let cancelled = false;
-    fetch(
-      `${BACKEND_BASE}/species/${encodeURIComponent(taxonId)}/environment/${encodeURIComponent(variable.id)}/observation-values?unit_system=${units}`,
-    )
-      .then((r) => (r.ok ? r.json() : Promise.reject(r.status)))
-      .then(
-        (data: {
-          observations?: { catalogNumber: string | number; value: number }[];
-          min?: number | null;
-          max?: number | null;
-          q01?: number | null;
-          q99?: number | null;
-        }) => {
-          if (cancelled) return;
-          const map = new Map<string, number>();
-          for (const obs of data.observations ?? []) {
-            if (obs.catalogNumber != null && typeof obs.value === 'number') {
-              map.set(String(obs.catalogNumber), obs.value);
-            }
-          }
-          // Same robust range the species page colors dots by (q01/q99,
-          // falling back to min/max).
-          const lo = data.q01 ?? data.min;
-          const hi = data.q99 ?? data.max;
-          setObservedRange(
-            typeof lo === 'number' && typeof hi === 'number' && lo < hi
-              ? { min: lo, max: hi }
-              : null,
-          );
-          setObservationValues(map);
-        },
-      )
-      .catch(() => {
-        if (!cancelled) setObservationValues(null);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [taxonId, variable.id, units]);
+    setSelectedPoint(null);
+  }, [taxonId]);
 
-  const dataReady = !loading && observationValues != null;
+  // The 'observed' range is the min..max of what is actually displayed (after
+  // the geographic crop), not a percentile range.
+  const observedRange = React.useMemo(() => {
+    if (!observationValues) return null;
+    let min = Infinity;
+    let max = -Infinity;
+    for (const occ of occurrences) {
+      const v = observationValues.get(String(occ.catalogNumber));
+      if (v == null) continue;
+      if (v < min) min = v;
+      if (v > max) max = v;
+    }
+    return min < max ? { min, max } : null;
+  }, [occurrences, observationValues]);
+
+  // Ready = the map is loaded and THIS species' data is in (not the previous
+  // species' still showing).
   React.useEffect(() => {
-    if (mapLoaded && dataReady) onReady?.();
-  }, [mapLoaded, dataReady, onReady]);
+    mapDebugLog('StudyMap state', {
+      taxonId,
+      mapLoaded,
+      shown: shown ? shown.occurrences.length : null,
+      stale,
+    });
+    if (mapLoaded && shown) onReady?.();
+  }, [mapLoaded, shown, onReady, taxonId, stale]);
 
   const handleMapReady = React.useCallback(() => setMapLoaded(true), []);
 
@@ -159,8 +189,8 @@ export function StudyMap({
   const { renderMin, renderMax } = variable;
   const colormap = React.useMemo(() => {
     const baseStops =
-      scheme.colormap === 'viridis'
-        ? COLORMAPS.viridis.stops
+      scheme.colormap === 'magma'
+        ? COLORMAPS.magma.stops
         : scheme.colormap === 'thematic'
           ? (THEMATIC_STOPS[variable.id] ?? COOLWARM_STOPS)
           : COOLWARM_STOPS;
@@ -250,12 +280,40 @@ export function StudyMap({
   const activeColormap = colormap ?? lastColormapRef.current;
   if (!activeColormap) return null;
 
+  // Legend: either the colormap's own range, or only the part of it the
+  // species' values cover (labelled with its local min/max) - the dots are
+  // colored the same either way.
+  const legend =
+    legendRange === 'observed' && observedRange
+      ? (() => {
+          const count = 101;
+          const span = activeColormap.max - activeColormap.min || 1;
+          const slice = Array.from({ length: count }, (_, i) => {
+            const v =
+              observedRange.min +
+              (i / (count - 1)) * (observedRange.max - observedRange.min);
+            return sampleStops(
+              activeColormap.stops,
+              (v - activeColormap.min) / span,
+            );
+          });
+          return {
+            min: observedRange.min,
+            max: observedRange.max,
+            barSvgStops: stopsColormap(slice).barSvgStops,
+          };
+        })()
+      : {
+          min: activeColormap.min,
+          max: activeColormap.max,
+          barSvgStops: activeColormap.barSvgStops,
+        };
+
   return (
     <View style={styles.wrap}>
       <SpeciesOccurrenceMap
-        key={taxonId}
         occurrences={occurrences}
-        loading={loading}
+        loading={stale}
         error={error}
         height={height}
         minZoom={0}
@@ -267,22 +325,41 @@ export function StudyMap({
         onPinObservation={handlePin}
         selectedPoint={selectedPoint}
         observationValues={observationValues}
-        variableDataLoading={observationValues == null}
+        variableDataLoading={display == null}
         dotMin={activeColormap.min}
         dotMax={activeColormap.max}
         gradientStops={activeColormap.stops}
         varUnits={variable.units ?? null}
       />
       <MapVariableLegend
-        min={activeColormap.min}
-        max={activeColormap.max}
+        min={legend.min}
+        max={legend.max}
         units={variable.units}
-        barSvgStops={activeColormap.barSvgStops}
+        barSvgStops={legend.barSvgStops}
       />
+      {stale && display ? (
+        <View
+          style={[
+            styles.cover,
+            { backgroundColor: palette.background.default.secondary },
+          ]}
+        >
+          <ThemedText>Loading next species…</ThemedText>
+        </View>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { position: 'relative', flex: 1, minWidth: 280 },
+  cover: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
