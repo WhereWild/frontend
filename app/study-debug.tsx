@@ -54,6 +54,12 @@ const DISTRIBUTION_OPTIONS: Option<'on' | 'off'>[] = [
   { value: 'off', label: 'Off (linear)' },
   { value: 'on', label: 'On (equal-area)' },
 ];
+const CENTER_OPTIONS: Option<StudyScheme['center']>[] = [
+  { value: 'none', label: 'Default (range midpoint)' },
+  { value: 'zeroF', label: 'Pin middle at 0 °F' },
+  { value: 'freezingF', label: 'Pin middle at 32 °F' },
+  { value: 'fiftyF', label: 'Pin middle at 50 °F' },
+];
 const LUM_SAT_CHANNEL_OPTIONS: Option<StudyScheme['lumSatChannels']>[] = [
   { value: 'both', label: 'Luminance + saturation' },
   { value: 'saturation', label: 'Saturation only' },
@@ -108,6 +114,7 @@ export default function StudyDebugPage() {
     bounds: 'global',
     observedLumSat: false,
     distributionAware: false,
+    center: 'none',
     lumSatChannels: 'both',
     lumSatShape: 'sequential',
   });
@@ -168,6 +175,12 @@ export default function StudyDebugPage() {
             options={BOUNDS_OPTIONS}
             value={scheme.bounds}
             onChange={(bounds) => setScheme((s) => ({ ...s, bounds }))}
+          />
+          <OptionRow
+            title='Center (temperature variables; sides run linearly to the bounds)'
+            options={CENTER_OPTIONS}
+            value={scheme.center}
+            onChange={(center) => setScheme((s) => ({ ...s, center }))}
           />
           <OptionRow
             title='Distribution-aware (color share proportional to global area)'

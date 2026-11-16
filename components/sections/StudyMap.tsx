@@ -18,6 +18,7 @@ import { cdfAt, VARIABLE_CDFS } from '@/components/sections/studyDistributions';
 import {
   COOLWARM_STOPS,
   CUSTOM_BOUNDS_F,
+  CENTER_F,
   DISTRIBUTION_STOP_COUNT,
   equalizedStops,
   TEMPERATURE_VARIABLE_IDS,
@@ -184,13 +185,32 @@ export function StudyMap({
     // `range` (needs this variable's CDF; falls back to linear without it).
     const cdf = scheme.distributionAware ? VARIABLE_CDFS[variable.id] : null;
     const toC = (v: number) => (units === 'metric' ? v : ((v - 32) * 5) / 9);
-    const position = cdf
+    // Base 0..1 position of a value within `range`: linear, or equal-area.
+    const base = cdf
       ? (() => {
           const lo = cdfAt(cdf, toC(range.min));
           const span = cdfAt(cdf, toC(range.max)) - lo || 1;
           return (v: number) => (cdfAt(cdf, toC(v)) - lo) / span;
         })()
-      : null;
+      : (v: number) => (v - range.min) / (range.max - range.min || 1);
+    // Center pin: the colormap's middle lands on a fixed temperature, each
+    // side interpolated linearly (in base position) out to the range ends.
+    const centerValue =
+      scheme.center !== 'none' && TEMPERATURE_VARIABLE_IDS.includes(variable.id)
+        ? fToDisplay(CENTER_F[scheme.center])
+        : null;
+    const centerPos = centerValue != null ? base(centerValue) : null;
+    const pinned = centerPos != null && centerPos > 0 && centerPos < 1;
+    const position =
+      cdf || pinned
+        ? (v: number) => {
+            const u = base(v);
+            if (!pinned) return u;
+            return u <= centerPos
+              ? (0.5 * u) / centerPos
+              : 0.5 + (0.5 * (u - centerPos)) / (1 - centerPos);
+          }
+        : null;
     if (!scheme.observedLumSat) {
       return {
         ...stopsColormap(

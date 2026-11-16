@@ -63,6 +63,9 @@ export const THEMATIC_STOPS: Record<string, RGB[]> = {
  * degrees-F `custom` / `custom2` bounds presets make sense for. */
 export const TEMPERATURE_VARIABLE_IDS = ['bio1', 'bio5', 'bio6'];
 
+/** Fixed temperatures (F) the `center` option can pin the colormap's middle to. */
+export const CENTER_F = { zeroF: 0, freezingF: 32, fiftyF: 50 };
+
 /** The `custom` / `custom2` bounds presets, in °F (the study's variables are
  * all temperatures); converted to °C when the study is shown in metric. They
  * apply to whichever variable is shown, not per variable. */
@@ -83,6 +86,12 @@ export const CUSTOM_BOUNDS_F = {
  *   share of global area (area-weighted CDF, see studyDistributions.ts)
  *   within the chosen `bounds`, instead of linear in the value — so a
  *   temperature range holding 5x the area gets 5x the color
+ * - center: pin the colormap's middle (e.g. coolwarm's white) at a fixed
+ *   temperature (`zeroF` = 0 F, `freezingF` = 32 F, `fiftyF` = 50 F) and interpolate each side
+ *   linearly out to the chosen bounds' min and max, instead of the middle
+ *   falling at the bounds' midpoint. Temperature variables only; ignored if
+ *   the temperature lies outside the bounds. Composes with distributionAware
+ *   (the pin and the sides are then in cumulative-area space)
  * - lumSatChannels: which channels the observed range drives — `both`
  *   (lightness and saturation) or `saturation` only (lightness held constant)
  * - lumSatShape: how lightness/saturation run over that range — `sequential`
@@ -96,6 +105,7 @@ export type StudyScheme = {
   bounds: 'global' | 'observed' | 'custom' | 'custom2';
   observedLumSat: boolean;
   distributionAware: boolean;
+  center: 'none' | 'zeroF' | 'freezingF' | 'fiftyF';
   lumSatChannels: 'both' | 'saturation';
   lumSatShape: 'sequential' | 'diverging';
 };

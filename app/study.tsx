@@ -75,6 +75,7 @@ const SCHEME: StudyScheme = {
   bounds: 'global',
   observedLumSat: true,
   distributionAware: false,
+  center: 'none',
   lumSatChannels: 'both',
   lumSatShape: 'sequential',
 };
