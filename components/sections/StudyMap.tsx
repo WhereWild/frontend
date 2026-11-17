@@ -258,12 +258,25 @@ export function StudyMap({
         onDrawn={handleDrawn}
         onKey={onKey}
       />
-      <MapVariableLegend
-        min={legend.min}
-        max={legend.max}
-        units={variable.units}
-        barSvgStops={legend.barSvgStops}
-      />
+      {/* Hidden until the map is ready: the legend must not show over a
+          loading or half-drawn map. The wrapper fills the map area because the
+          legend positions itself absolutely against its parent. */}
+      <View
+        style={[
+          styles.legendLayer,
+          {
+            opacity: settled != null ? 1 : 0,
+            pointerEvents: settled != null ? 'box-none' : 'none',
+          },
+        ]}
+      >
+        <MapVariableLegend
+          min={legend.min}
+          max={legend.max}
+          units={variable.units}
+          barSvgStops={legend.barSvgStops}
+        />
+      </View>
       {settled == null && display ? (
         <View
           style={[
@@ -280,6 +293,13 @@ export function StudyMap({
 
 const styles = StyleSheet.create({
   wrap: { position: 'relative', flex: 1, minWidth: 280 },
+  legendLayer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
   cover: {
     position: 'absolute',
     top: 0,
