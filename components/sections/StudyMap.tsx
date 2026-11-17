@@ -2,44 +2,39 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-import { SpeciesOccurrenceMap } from '@/components/sections/SpeciesOccurrenceMap';
 import { MapVariableLegend } from '@/components/sections/speciesOccurrenceMap/MapVariableLegend';
 import {
-  COLORMAPS,
-  stopsColormap,
-} from '@/components/sections/speciesOccurrenceMap/variableColors';
+  interpolateGradientStops,
+  safeGradientT,
+} from '@/components/sections/speciesOccurrenceMap/speciesOccurrenceMapHelpers';
+import {
+  StudyDotMap,
+  type StudyDot,
+} from '@/components/sections/studyDotMap/StudyDotMap';
+import {
+  buildStudyColormap,
+  buildStudyLegend,
+  type StudyColormap,
+} from '@/components/sections/studyColormap';
+import type { StudyScheme } from '@/components/sections/studyColors';
+import type { StudyViewBox } from '@/components/sections/studyPool';
 import {
   findTruth,
   scoreSelection,
   type ExtremeTarget,
   type StudySelection,
 } from '@/components/sections/studyScoring';
-import { cdfAt, VARIABLE_CDFS } from '@/components/sections/studyDistributions';
-import {
-  COOLWARM_STOPS,
-  sampleStops,
-  CUSTOM_BOUNDS_F,
-  CENTER_F,
-  DISTRIBUTION_STOP_COUNT,
-  equalizedStops,
-  TEMPERATURE_VARIABLE_IDS,
-  THEMATIC_STOPS,
-  globalHueObservedLumSatStops,
-  type StudyScheme,
-} from '@/components/sections/studyColors';
-import type { StudyViewBox } from '@/components/sections/studyPool';
-import type { EnvironmentVariableDefinition } from '@/data/types';
 import { mapDebugLog } from '@/components/sections/mapDebug';
 import { useStudyData } from '@/components/sections/useStudyData';
 import { ThemedText } from '@/components/text/ThemedText';
 import { Colors } from '@/constants/theme';
+import type { EnvironmentVariableDefinition } from '@/data/types';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
-/** Longest a trial waits, once the map document has loaded and this species'
- * data is in, for the map to verify it is drawing the dots. Generous because a
- * fresh map (first trial) spends several seconds building itself first. */
+/** Longest a trial waits for the map to report the new dots drawn and the
+ * basemap loaded before proceeding anyway. */
 const SETTLE_TIMEOUT_MS = 15000;
 
 type StudyMapProps = {
@@ -62,21 +57,30 @@ type StudyMapProps = {
   target?: ExtremeTarget;
   /** Called with the new selection, or null when the participant clears it
    * (clicking the selected dot's popup 'x' sends the same pin again, which
-   * the map expects to toggle the pin off). */
+   * the map treats as a toggle). */
   onSelect?: (selection: StudySelection | null) => void;
-  /** Fires once the map has loaded AND this species' occurrences and values
-   * have arrived — i.e. the participant can actually see and use the map. */
-  /** `verified` is false when the map never confirmed it was drawing the dots
-   * and the wait timed out instead. */
+  /** Fires once THIS species' dots are drawn and the basemap has loaded - the
+   * participant can actually see and use the map. `verified` is false when
+   * that was never confirmed and the wait timed out instead. */
   onReady?: (verified: boolean) => void;
   /** Species to preload in the background (the upcoming trials). */
   prefetchTaxonIds?: readonly string[];
+  /** A key was pressed while the map had focus. */
+  onKey?: (key: string) => void;
+};
+
+const NO_DATA_COLOR = 'rgba(255,255,255,0.5)';
+
+const formatValue = (value: number, units: string | null | undefined) => {
+  const text =
+    Math.abs(value) >= 1000
+      ? value.toLocaleString(undefined, { maximumFractionDigits: 0 })
+      : value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+  return units ? `${text} ${units}` : text;
 };
 
 /** One species' occurrence map for the visualization study: dots colored by
- * `variable` according to `scheme`, with a legend. Renders nothing until the
- * data the scheme needs (e.g. the variable's catalog bounds, the species'
- * observed range) is available. */
+ * `variable` according to `scheme`, with a legend. */
 export function StudyMap({
   taxonId,
   variable,
@@ -89,6 +93,7 @@ export function StudyMap({
   onSelect,
   onReady,
   prefetchTaxonIds,
+  onKey,
 }: StudyMapProps) {
   const { data, error } = useStudyData({
     taxonId,
@@ -98,43 +103,39 @@ export function StudyMap({
   });
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
+
   // `shown`: this taxon's data (cropped to its viewBox), once it has loaded.
   const shown = React.useMemo(() => {
     if (!data || data.taxonId !== taxonId) return null;
-    const inView = viewBox
-      ? data.occurrences.filter(
-          (o) =>
-            o.longitude >= viewBox.lonMin &&
-            o.longitude < viewBox.lonMax &&
-            o.latitude >= viewBox.latMin &&
-            o.latitude < viewBox.latMax,
-        )
-      : data.occurrences;
     return {
       values: data.values,
-      // Clicking a dot shows only its value - no observation number, photo
-      // or attribution (which would identify the species/observation).
-      occurrences: inView.map((o) => ({ ...o, valueOnlyPopup: true })),
+      occurrences: viewBox
+        ? data.occurrences.filter(
+            (o) =>
+              o.longitude >= viewBox.lonMin &&
+              o.longitude < viewBox.lonMax &&
+              o.latitude >= viewBox.latMin &&
+              o.latitude < viewBox.latMax,
+          )
+        : data.occurrences,
     };
   }, [data, taxonId, viewBox]);
   // The map stays mounted across species; until the next one loads it keeps
-  // the previous dots (hidden under a loading cover) instead of rebuilding.
+  // showing the previous dots under a loading cover.
   const lastShownRef = React.useRef(shown);
   if (shown) lastShownRef.current = shown;
   const display = shown ?? lastShownRef.current;
-  const stale = shown == null;
   const occurrences = React.useMemo(
     () => display?.occurrences ?? [],
     [display],
   );
   const observationValues = display?.values ?? null;
-  const [mapLoaded, setMapLoaded] = React.useState(false);
+
   const [selectedPoint, setSelectedPoint] = React.useState<{
     lat: number;
     lon: number;
     catalogNumber: string;
   } | null>(null);
-
   // A new species starts with nothing selected.
   React.useEffect(() => {
     setSelectedPoint(null);
@@ -155,23 +156,47 @@ export function StudyMap({
     return min < max ? { min, max } : null;
   }, [occurrences, observationValues]);
 
-  // Settled = the map has verified it is actually drawing THIS species' dots
-  // (not the previous species' stale tiles, nor a partial set), which can lag
-  // the data arriving by a second or more. The trial only starts - and the
-  // cover only lifts - once settled, with a fallback so a map that never
-  // verifies can't block a participant forever.
+  const colormap = React.useMemo(
+    () => buildStudyColormap(scheme, variable, units, observedRange),
+    [scheme, variable, units, observedRange],
+  );
+  // Keep the last good colors while a scheme's inputs are in flight.
+  const lastColormapRef = React.useRef<StudyColormap | null>(colormap);
+  if (colormap) lastColormapRef.current = colormap;
+  const activeColormap = colormap ?? lastColormapRef.current;
+
+  const dots = React.useMemo<StudyDot[]>(() => {
+    if (!activeColormap || !observationValues) return [];
+    return occurrences.map((occ) => {
+      const id = String(occ.catalogNumber);
+      const value = observationValues.get(id);
+      return {
+        id,
+        lat: occ.latitude,
+        lon: occ.longitude,
+        color:
+          value == null
+            ? NO_DATA_COLOR
+            : interpolateGradientStops(
+                safeGradientT(value, activeColormap.min, activeColormap.max),
+                activeColormap.stops,
+              ),
+        label: value == null ? 'No data' : formatValue(value, variable.units),
+      };
+    });
+  }, [occurrences, observationValues, activeColormap, variable.units]);
+
+  // Settled = the map reported THIS species' dots drawn and its basemap
+  // loaded. The trial only starts, and the cover only lifts, once settled,
+  // with a fallback so a stalled map can't block a participant forever.
   const [settled, setSettled] = React.useState<'verified' | 'timeout' | null>(
     null,
   );
-  const expectedPointsRef = React.useRef(-2);
-  expectedPointsRef.current = shown ? shown.occurrences.length : -2;
   React.useEffect(() => {
     setSettled(null);
   }, [shown]);
-  // The fallback clock only runs once the map document is loaded and this
-  // species' data is in - not while the map is still building itself.
   React.useEffect(() => {
-    if (!shown || !mapLoaded) return;
+    if (!shown) return;
     const timer = setTimeout(() => {
       mapDebugLog('settle TIMEOUT - proceeding without verification', {
         taxonId,
@@ -179,28 +204,19 @@ export function StudyMap({
       setSettled((current) => current ?? 'timeout');
     }, SETTLE_TIMEOUT_MS);
     return () => clearTimeout(timer);
-    // `taxonId` is intentionally not a dependency: `shown` already changes
-    // with it.
+    // `shown` already changes with the taxon.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shown, mapLoaded]);
-  const handleMapSettled = React.useCallback((points: number) => {
-    if (points === expectedPointsRef.current) setSettled('verified');
-  }, []);
+  }, [shown]);
+  const handleDrawn = React.useCallback(() => setSettled('verified'), []);
 
-  // Ready = the map is loaded and THIS species' data is in and drawn (not the
-  // previous species' still showing).
   React.useEffect(() => {
     mapDebugLog('StudyMap state', {
       taxonId,
-      mapLoaded,
       shown: shown ? shown.occurrences.length : null,
-      stale,
       settled: settled ?? 'no',
     });
-    if (mapLoaded && shown && settled) onReady?.(settled === 'verified');
-  }, [mapLoaded, shown, settled, onReady, taxonId, stale]);
-
-  const handleMapReady = React.useCallback(() => setMapLoaded(true), []);
+    if (shown && settled) onReady?.(settled === 'verified');
+  }, [shown, settled, onReady, taxonId]);
 
   const handlePin = React.useCallback(
     (catalogNumber: string, lat: number, lon: number) => {
@@ -226,154 +242,21 @@ export function StudyMap({
     [selectedPoint, target, onSelect, occurrences, observationValues],
   );
 
-  const { renderMin, renderMax } = variable;
-  const colormap = React.useMemo(() => {
-    const baseStops =
-      scheme.colormap === 'magma'
-        ? COLORMAPS.magma.stops
-        : scheme.colormap === 'thematic'
-          ? (THEMATIC_STOPS[variable.id] ?? COOLWARM_STOPS)
-          : COOLWARM_STOPS;
-    const globalRange =
-      renderMin != null && renderMax != null
-        ? { min: renderMin, max: renderMax }
-        : null;
-    const fToDisplay = (f: number) =>
-      units === 'metric' ? ((f - 32) * 5) / 9 : f;
-    const range =
-      scheme.bounds === 'observed'
-        ? observedRange
-        : (scheme.bounds === 'custom' || scheme.bounds === 'custom2') &&
-            TEMPERATURE_VARIABLE_IDS.includes(variable.id)
-          ? {
-              min: fToDisplay(CUSTOM_BOUNDS_F[scheme.bounds].min),
-              max: fToDisplay(CUSTOM_BOUNDS_F[scheme.bounds].max),
-            }
-          : globalRange;
-    if (!range) return null;
-    // Distribution-aware: position = the value's share of global area within
-    // `range` (needs this variable's CDF; falls back to linear without it).
-    const cdf = scheme.distributionAware ? VARIABLE_CDFS[variable.id] : null;
-    const toC = (v: number) => (units === 'metric' ? v : ((v - 32) * 5) / 9);
-    // Base 0..1 position of a value within `range`: linear, or equal-area.
-    const base = cdf
-      ? (() => {
-          const lo = cdfAt(cdf, toC(range.min));
-          const span = cdfAt(cdf, toC(range.max)) - lo || 1;
-          return (v: number) => (cdfAt(cdf, toC(v)) - lo) / span;
-        })()
-      : (v: number) => (v - range.min) / (range.max - range.min || 1);
-    // Center pin: the colormap's middle lands on a fixed temperature, each
-    // side interpolated linearly (in base position) out to the range ends.
-    const centerValue =
-      scheme.center !== 'none' && TEMPERATURE_VARIABLE_IDS.includes(variable.id)
-        ? fToDisplay(CENTER_F[scheme.center])
-        : null;
-    const centerPos = centerValue != null ? base(centerValue) : null;
-    const pinned = centerPos != null && centerPos > 0 && centerPos < 1;
-    const position =
-      cdf || pinned
-        ? (v: number) => {
-            const u = base(v);
-            if (!pinned) return u;
-            return u <= centerPos
-              ? (0.5 * u) / centerPos
-              : 0.5 + (0.5 * (u - centerPos)) / (1 - centerPos);
-          }
-        : null;
-    if (!scheme.observedLumSat) {
-      return {
-        ...stopsColormap(
-          position
-            ? equalizedStops(baseStops, range.min, range.max, position)
-            : baseStops,
-        ),
-        min: range.min,
-        max: range.max,
-      };
-    }
-    // Hue spans `range`; lightness/saturation span the observed range.
-    if (!observedRange) return null;
-    return {
-      ...stopsColormap(
-        globalHueObservedLumSatStops({
-          globalStops: baseStops,
-          globalMin: range.min,
-          globalMax: range.max,
-          observedMin: observedRange.min,
-          observedMax: observedRange.max,
-          shape: scheme.lumSatShape,
-          channels: scheme.lumSatChannels,
-          hueAtValue: position ?? undefined,
-          stopCount: position ? DISTRIBUTION_STOP_COUNT : undefined,
-        }),
-      ),
-      min: observedRange.min,
-      max: observedRange.max,
-    };
-  }, [scheme, units, variable.id, renderMin, renderMax, observedRange]);
-  // Once the map has been shown, keep it mounted with the last good colors
-  // while a new scheme's inputs (e.g. a refetched range) are in flight —
-  // unmounting would rebuild the whole map instead of recoloring it.
-  const lastColormapRef = React.useRef(colormap);
-  if (colormap) lastColormapRef.current = colormap;
-  const activeColormap = colormap ?? lastColormapRef.current;
+  if (error) {
+    return <ThemedText>{error}</ThemedText>;
+  }
   if (!activeColormap) return null;
-
-  // Legend: either the colormap's own range, or only the part of it the
-  // species' values cover (labelled with its local min/max) - the dots are
-  // colored the same either way.
-  const legend =
-    legendRange === 'observed' && observedRange
-      ? (() => {
-          const count = 101;
-          const span = activeColormap.max - activeColormap.min || 1;
-          const slice = Array.from({ length: count }, (_, i) => {
-            const v =
-              observedRange.min +
-              (i / (count - 1)) * (observedRange.max - observedRange.min);
-            return sampleStops(
-              activeColormap.stops,
-              (v - activeColormap.min) / span,
-            );
-          });
-          return {
-            min: observedRange.min,
-            max: observedRange.max,
-            barSvgStops: stopsColormap(slice).barSvgStops,
-          };
-        })()
-      : {
-          min: activeColormap.min,
-          max: activeColormap.max,
-          barSvgStops: activeColormap.barSvgStops,
-        };
+  const legend = buildStudyLegend(activeColormap, legendRange, observedRange);
 
   return (
     <View style={styles.wrap}>
-      <SpeciesOccurrenceMap
-        occurrences={occurrences}
-        loading={stale}
-        error={error}
+      <StudyDotMap
+        dots={dots}
+        selectedId={selectedPoint?.catalogNumber ?? null}
         height={height}
-        minZoom={0}
-        // Recolor dots via the map's live update message instead of
-        // rebuilding the whole map when the scheme/values change.
-        preserveMapPosition
-        enableBasemapModeToggle={false}
-        // The study never goes offline; the offline template is ~8 MB per map (vs
-        // 140 KB) and is re-filled with placeholders on every rebuild.
-        enableOfflineFallback={false}
-        onMapReady={handleMapReady}
-        onMapSettled={handleMapSettled}
-        onPinObservation={handlePin}
-        selectedPoint={selectedPoint}
-        observationValues={observationValues}
-        variableDataLoading={display == null}
-        dotMin={activeColormap.min}
-        dotMax={activeColormap.max}
-        gradientStops={activeColormap.stops}
-        varUnits={variable.units ?? null}
+        onPin={handlePin}
+        onDrawn={handleDrawn}
+        onKey={onKey}
       />
       <MapVariableLegend
         min={legend.min}
@@ -381,7 +264,7 @@ export function StudyMap({
         units={variable.units}
         barSvgStops={legend.barSvgStops}
       />
-      {(stale || settled == null) && display ? (
+      {settled == null && display ? (
         <View
           style={[
             styles.cover,

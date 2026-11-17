@@ -50,6 +50,93 @@ const twoColorStops = (low: string, high: string): RGB[] => {
 
 const BROWN = '#8b5a2b';
 
+/** matplotlib's YlGn sampled at 16 even stops over 0.2..1.0 (the pale-yellow
+ * end, nearly white, is dropped so the low end doesn't vanish on a light
+ * basemap). Stored dark green (low values) -> pale yellow-green (high values),
+ * i.e. matplotlib's YlGn flipped; no red or blue. */
+export const YLGN_STOPS: RGB[] = [
+  [0, 69, 41],
+  [0, 83, 47],
+  [0, 99, 53],
+  [9, 111, 58],
+  [24, 123, 63],
+  [39, 137, 70],
+  [51, 153, 81],
+  [64, 170, 92],
+  [88, 182, 105],
+  [111, 193, 116],
+  [134, 204, 127],
+  [157, 214, 136],
+  [178, 223, 144],
+  [197, 232, 154],
+  [217, 240, 163],
+  [229, 245, 172],
+];
+
+/** Grayscale, dark (low values) -> light (high values), over 0.10..0.85 of the
+ * black-to-white range: pure black and white are dropped so the ends stay
+ * visible on dark and light basemaps. No hue at all. */
+export const GRAY_STOPS: RGB[] = [
+  [26, 26, 26],
+  [38, 38, 38],
+  [51, 51, 51],
+  [64, 64, 64],
+  [77, 77, 77],
+  [89, 89, 89],
+  [102, 102, 102],
+  [115, 115, 115],
+  [128, 128, 128],
+  [140, 140, 140],
+  [153, 153, 153],
+  [166, 166, 166],
+  [179, 179, 179],
+  [191, 191, 191],
+  [204, 204, 204],
+  [217, 217, 217],
+];
+
+/** viridis over 0.65..1.0 - the green -> yellow part (hue about 155 -> 60), cut
+ * where viridis stops being teal/cyan so the low end can't read as "cold".
+ * Sequential with monotonic lightness; no red, orange or blue. */
+export const VIRIDIS_UPPER_STOPS: RGB[] = [
+  [47, 180, 124],
+  [56, 185, 119],
+  [66, 190, 113],
+  [78, 195, 107],
+  [90, 200, 100],
+  [103, 204, 92],
+  [117, 208, 84],
+  [132, 212, 75],
+  [147, 215, 65],
+  [162, 218, 55],
+  [178, 221, 45],
+  [194, 223, 35],
+  [210, 226, 27],
+  [226, 228, 24],
+  [241, 229, 29],
+  [253, 231, 37],
+];
+
+/** matplotlib's `summer` over its full range: teal-green -> pale yellow. */
+export const SUMMER_STOPS: RGB[] = [
+  [0, 128, 102],
+  [17, 136, 102],
+  [34, 144, 102],
+  [51, 153, 102],
+  [68, 162, 102],
+  [85, 170, 102],
+  [102, 178, 102],
+  [119, 187, 102],
+  [136, 195, 102],
+  [153, 204, 102],
+  [170, 212, 102],
+  [187, 221, 102],
+  [204, 230, 102],
+  [221, 238, 102],
+  [238, 246, 102],
+  [255, 255, 102],
+];
+
 /** Per-variable thematic ramps (the `thematic` colormap): a metaphor for what
  * the variable is, low -> high. Variables absent here (the temperatures) use
  * coolwarm under `thematic`. */
@@ -75,7 +162,12 @@ export const CUSTOM_BOUNDS_F = {
 };
 
 /** One study color configuration — the experiment's independent variables.
- * - colormap: coolwarm, plain magma, or `thematic` (a per-variable
+ * - colormap: coolwarm, plain viridis, plasma or magma, `viridisUpper` (the green ->
+ *   yellow part of viridis: sequential, perceptually uniform, no red/orange
+ *   or blue/cyan hues), `summer` (matplotlib's green -> yellow), `gray` (dark = low -> light = high; no
+ *   hue at all), `ylgn` (matplotlib's YlGn with its
+ *   near-white end clipped so the lowest values stay visible on a light
+ *   basemap; no red or blue hues), or `thematic` (a per-variable
  *   metaphor ramp, see THEMATIC_STOPS; temperatures stay coolwarm)
  * - bounds: which value range the colormap spans — the variable's global
  *   render min/max, the species' own observed range, or a fixed °F preset
@@ -101,7 +193,16 @@ export const CUSTOM_BOUNDS_F = {
  *   both extremes, while one entirely on one side of it runs sequentially
  *   away from the center) */
 export type StudyScheme = {
-  colormap: 'coolwarm' | 'magma' | 'thematic';
+  colormap:
+    | 'coolwarm'
+    | 'viridis'
+    | 'plasma'
+    | 'magma'
+    | 'ylgn'
+    | 'gray'
+    | 'viridisUpper'
+    | 'summer'
+    | 'thematic';
   bounds: 'global' | 'observed' | 'custom' | 'custom2';
   observedLumSat: boolean;
   distributionAware: boolean;

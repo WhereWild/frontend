@@ -43,7 +43,13 @@ type Option<T extends string> = { value: T; label: string };
 const COLORMAPS_OPTIONS: Option<StudyScheme['colormap']>[] = [
   { value: 'coolwarm', label: 'Coolwarm' },
   { value: 'thematic', label: 'Thematic (per variable)' },
+  { value: 'viridis', label: 'Viridis' },
+  { value: 'viridisUpper', label: 'Viridis, green→yellow half' },
+  { value: 'summer', label: 'Summer (green→yellow)' },
+  { value: 'plasma', label: 'Plasma' },
   { value: 'magma', label: 'Magma' },
+  { value: 'ylgn', label: 'YlGn (yellow-green, no red/blue)' },
+  { value: 'gray', label: 'Grayscale (dark = low)' },
 ];
 const BOUNDS_OPTIONS: Option<StudyScheme['bounds']>[] = [
   { value: 'global', label: 'Global render min/max' },

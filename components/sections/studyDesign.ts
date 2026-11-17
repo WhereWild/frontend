@@ -5,7 +5,7 @@
 // Per-participant trial design for the visualization study: STUDY_ROUNDS
 // rounds of 4 trials, every trial on a different species drawn at random from
 // the pool, each round using one species from each entropy quartile (so spatial dispersion is evenly sampled and logged, not varied
-// as a factor). The 4 conditions are the 2x2 of colormap (magma vs
+// as a factor). The 4 conditions are the 2x2 of colormap (viridis vs
 // coolwarm) x bounds (the species' own observed range vs the variable's
 // global range), each used exactly once per participant; which condition
 // lands on which species, the hottest/coldest question (2 of each per round)
@@ -20,13 +20,13 @@ import type { ExtremeTarget } from '@/components/sections/studyScoring';
 export const STUDY_ROUNDS = 10;
 
 export type StudyCondition = {
-  colormap: 'magma' | 'coolwarm';
+  colormap: 'viridis' | 'coolwarm';
   bounds: 'observed' | 'global';
 };
 
 export const STUDY_CONDITIONS: StudyCondition[] = [
-  { colormap: 'magma', bounds: 'observed' },
-  { colormap: 'magma', bounds: 'global' },
+  { colormap: 'viridis', bounds: 'observed' },
+  { colormap: 'viridis', bounds: 'global' },
   { colormap: 'coolwarm', bounds: 'observed' },
   { colormap: 'coolwarm', bounds: 'global' },
 ];

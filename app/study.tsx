@@ -10,8 +10,9 @@
 // habitat the hottest/coldest?" - click a dot, then Next (studyDesign.ts).
 // Comparison mode (/study?mode=juxtapose): two species side by side, "which
 // species' observations have the higher average annual mean temperature?" -
-// pick a map, then Next (studyCompare.ts). Both: 40 randomized trials seeded
-// by the participant id, the colormap (magma/coolwarm) x bounds
+// answer with a key, F for Map A or J for Map B, which submits at once and
+// moves on, for speed (studyCompare.ts). Both: 40 randomized trials seeded
+// by the participant id, the colormap (viridis/coolwarm) x bounds
 // (observed/global) conditions balanced, observations outside each species'
 // map window neither shown nor scored (studyPool.ts), plain basemap tiles.
 
@@ -69,7 +70,6 @@ export default function StudyPage() {
   const [variable, setVariable] =
     React.useState<EnvironmentVariableDefinition | null>(null);
   const [selection, setSelection] = React.useState<StudySelection | null>(null);
-  const [choice, setChoice] = React.useState<0 | 1 | null>(null);
   const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   // Timing starts only once every map in the trial is loaded and usable, so
@@ -146,24 +146,18 @@ export default function StudyPage() {
     setSelection(next);
   }, []);
 
-  const handleChoose = (picked: 0 | 1) => {
-    choicesRef.current.push({ tMs: elapsedSinceStart(), choice: picked });
-    setChoice(picked);
-  };
-
   const question = trial?.question ?? null;
-  const canSubmit =
-    question?.kind === 'compare' ? choice != null : selection != null;
+  const canSubmit = selection != null;
 
-  const buildAnswer = () => {
+  const buildAnswer = (picked?: 0 | 1) => {
     if (!question) return null;
     if (question.kind === 'compare') {
-      if (choice == null) return null;
+      if (picked == null) return null;
       const [a, b] = question.meansF;
       return {
-        choice,
+        choice: picked,
         hotterIndex: question.hotterIndex,
-        correct: choice === question.hotterIndex,
+        correct: picked === question.hotterIndex,
         meansF: question.meansF,
         cellMeansF: question.cellMeansF,
         diffF: Math.abs(a - b),
@@ -179,8 +173,10 @@ export default function StudyPage() {
       : null;
   };
 
-  const submit = async () => {
-    if (!trial || !question) return;
+  const submittingRef = React.useRef(false);
+  const submit = async (picked?: 0 | 1) => {
+    if (!trial || !question || submittingRef.current) return;
+    submittingRef.current = true;
     setSubmitError(null);
     const startedAt = startedAtRef.current;
     // Selections/choices only; deselects stay logged but aren't answers.
@@ -209,7 +205,7 @@ export default function StudyPage() {
             question.kind === 'compare'
               ? { id: 'which-hotter-on-average' }
               : { id: 'habitat-extreme', target: question.target },
-          answer: buildAnswer(),
+          answer: buildAnswer(picked),
           timing: {
             startedAt,
             mapsVerified: unverifiedMapsRef.current.size === 0,
@@ -228,12 +224,38 @@ export default function StudyPage() {
       clicksRef.current = [];
       choicesRef.current = [];
       setSelection(null);
-      setChoice(null);
       setIndex((i) => i + 1);
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : 'Failed to submit');
+    } finally {
+      submittingRef.current = false;
     }
   };
+
+  // Comparison answer: F = Map A, J = Map B. Submits straight away. Ignored
+  // until both maps are ready (the timer is running) and while a submit is in
+  // flight, so an early or repeated press can't log a bogus time or answer.
+  const handleKey = (key: string) => {
+    if (question?.kind !== 'compare') return;
+    const lower = key.toLowerCase();
+    const picked = lower === 'f' ? 0 : lower === 'j' ? 1 : null;
+    if (picked == null) return;
+    if (startedAtRef.current == null || submittingRef.current) return;
+    choicesRef.current.push({ tMs: elapsedSinceStart(), choice: picked });
+    void submit(picked);
+  };
+  const handleKeyRef = React.useRef(handleKey);
+  handleKeyRef.current = handleKey;
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat || event.ctrlKey || event.metaKey || event.altKey)
+        return;
+      handleKeyRef.current(event.key);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   return (
     <PageSurface hideFooter>
@@ -246,7 +268,7 @@ export default function StudyPage() {
               <ThemedText>{`${index + 1} of ${trials.length}`}</ThemedText>
               <ThemedText>
                 {question.kind === 'compare'
-                  ? "Which species' observations have the higher average annual mean temperature? Choose a map."
+                  ? "Which species' observations have the higher average annual mean temperature? Press F for Map A or J for Map B."
                   : `Where is this species' habitat the ${question.target}? Click that dot on the map.`}
               </ThemedText>
               {variable ? (
@@ -274,6 +296,7 @@ export default function StudyPage() {
                         }
                         onSelect={handleSelect}
                         onReady={(verified) => markReady(s.taxonId, verified)}
+                        onKey={handleKey}
                       />
                     </View>
                   ))}
@@ -283,30 +306,28 @@ export default function StudyPage() {
               )}
               <View style={styles.questions}>
                 {question.kind === 'compare' ? (
-                  <View style={styles.choices}>
-                    {([0, 1] as const).map((i) => (
-                      <Button
-                        key={i}
-                        variant={choice === i ? 'primary' : 'neutral'}
-                        label={`${MAP_LABELS[i]} is hotter`}
-                        onPress={() => handleChoose(i)}
-                      />
-                    ))}
-                  </View>
-                ) : (
                   <ThemedText>
-                    {selection
-                      ? `${formatSelection(selection, variable?.units ?? '')} Click another dot to change it, or press Next.`
-                      : 'No dot selected yet.'}
+                    F = Map A is hotter, J = Map B is hotter
                   </ThemedText>
+                ) : (
+                  <>
+                    <ThemedText>
+                      {selection
+                        ? `${formatSelection(selection, variable?.units ?? '')} Click another dot to change it, or press Next.`
+                        : 'No dot selected yet.'}
+                    </ThemedText>
+                    {submitError && <ThemedText>{submitError}</ThemedText>}
+                    <Button
+                      variant='primary'
+                      label='Next'
+                      disabled={!canSubmit}
+                      onPress={() => void submit()}
+                    />
+                  </>
                 )}
-                {submitError && <ThemedText>{submitError}</ThemedText>}
-                <Button
-                  variant='primary'
-                  label='Next'
-                  disabled={!canSubmit}
-                  onPress={submit}
-                />
+                {question.kind === 'compare' && submitError ? (
+                  <ThemedText>{submitError}</ThemedText>
+                ) : null}
               </View>
             </>
           )}
@@ -320,6 +341,5 @@ const styles = StyleSheet.create({
   container: { gap: 16, padding: 16 },
   maps: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   slot: { flex: 1, minWidth: 280, gap: 8 },
-  choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   questions: { gap: 12 },
 });
