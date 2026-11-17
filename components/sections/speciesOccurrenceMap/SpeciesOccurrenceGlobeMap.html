@@ -293,6 +293,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // location/phenology filter refetch) and repositions the camera, unlike
     // refreshOccurrenceMarkerColors which only recolors the existing set.
     var replaceOccurrencePointsImpl = null;
+    var replaceCounter = 0;
     function replaceOccurrencePoints(newPoints, preserveViewport) {
       if (replaceOccurrencePointsImpl) {
         replaceOccurrencePointsImpl(newPoints, preserveViewport);
@@ -429,6 +430,153 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     function mapDebugEnabled() {
       try { return window.parent.localStorage.getItem('wwMapDebug') === '1'; } catch (e) { return false; }
     }
+    // How many points actually project inside the visible canvas. Uses the
+    // map's own projection rather than getBounds(), which isn't reliable under
+    // the globe projection.
+    function countPointsOnScreen() {
+      var el = map.getContainer();
+      var w = el.clientWidth, h = el.clientHeight, n = 0;
+      (OCCURRENCE_POINTS || []).forEach(function(pt) {
+        var p = map.project([pt.longitude, pt.latitude]);
+        if (p.x >= 0 && p.x <= w && p.y >= 0 && p.y <= h) n++;
+      });
+      return n;
+    }
+    // Debug only (private MapLibre fields): which sources still have tiles that
+    // aren't loaded, e.g. "occurrences:reloading x2 basemap:loading x1", or
+    // "all loaded". Says what a map stuck at loaded=false is waiting on.
+    function pendingSummary() {
+      try {
+        var parts = [];
+        var caches = map.style.sourceCaches || map.style._sourceCaches || {};
+        for (var id in caches) {
+          var cache = caches[id];
+          var counts = {};
+          for (var t in cache._tiles) {
+            var st = cache._tiles[t].state;
+            if (st !== 'loaded') counts[st] = (counts[st] || 0) + 1;
+          }
+          var bits = Object.keys(counts).map(function(k) { return k + ' x' + counts[k]; });
+          if (bits.length || (cache.loaded && !cache.loaded())) parts.push(id + ':' + (bits.join(',') || 'not loaded'));
+        }
+        return parts.length ? parts.join(' ') : 'all loaded';
+      } catch (e) { return 'n/a'; }
+    }
+    // After the dots are set (initial load or a swap), verify what is actually
+    // drawn, recover if it's incomplete, and tell the page when it's settled so
+    // it doesn't start a trial on a half-drawn map. Settled = at rest, drawing
+    // at least 98% of the on-screen points (a gap is a missing tile) and not
+    // meaningfully MORE than the point count (the previous set's stale tiles
+    // drawn on top of the new one). The checks double as recovery: an
+    // incomplete render gets a +1px/-1px camera nudge, which makes MapLibre
+    // re-request tiles (re-pushing the data was tried and didn't help).
+    // Superseded by any newer swap (replaceCounter).
+    // Pixel-level verification. queryRenderedFeatures is CPU-side and can report
+    // healthy counts while the GPU painted nothing, so read the canvas itself:
+    // at the screen position of ~80 sample points, is the pixel close to the
+    // color that point should have (dots are 90%-opaque circles, so their
+    // centers sit within a few levels of their fill)? Must run inside a render
+    // so the drawing buffer is still readable. Also counts points whose
+    // computed color is unparseable (e.g. 'rgb(NaN,...)'), which MapLibre
+    // would silently fail to draw.
+    function parseCssColor(c) {
+      if (!c) return null;
+      var m = /^rgba?\(\s*([\d.]+)\s*,\s*([\d.]+)\s*,\s*([\d.]+)/.exec(c);
+      if (m) return [+m[1], +m[2], +m[3]];
+      m = /^#([0-9a-f]{6})$/i.exec(c);
+      if (m) return [parseInt(m[1].slice(0, 2), 16), parseInt(m[1].slice(2, 4), 16), parseInt(m[1].slice(4, 6), 16)];
+      return null;
+    }
+    function samplePaintedRatio(callback) {
+      var el = map.getContainer();
+      var w = el.clientWidth, h = el.clientHeight;
+      var candidates = [];
+      var invalidColors = 0;
+      OCCURRENCE_POINTS.forEach(function(pt) {
+        var color = resolveMarkerColor(pt);
+        if (color == null) return;
+        var rgb = parseCssColor(color);
+        if (!rgb) { invalidColors++; return; }
+        var p = map.project([pt.longitude, pt.latitude]);
+        if (p.x >= 3 && p.x <= w - 3 && p.y >= 3 && p.y <= h - 3) candidates.push({ x: p.x, y: p.y, rgb: rgb });
+      });
+      var stride = Math.max(1, Math.floor(candidates.length / 80));
+      var sample = candidates.filter(function(_, i) { return i % stride === 0; });
+      var fired = false;
+      map.once('render', function() {
+        if (fired) return;
+        fired = true;
+        var matches = 0, readError = null;
+        try {
+          var canvas = map.getCanvas();
+          var gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+          var buf = new Uint8Array(4);
+          sample.forEach(function(sp) {
+            var px = Math.round(sp.x * canvas.width / w);
+            var py = canvas.height - Math.round(sp.y * canvas.height / h);
+            gl.readPixels(px, py, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buf);
+            var d = Math.sqrt(Math.pow(buf[0] - sp.rgb[0], 2) + Math.pow(buf[1] - sp.rgb[1], 2) + Math.pow(buf[2] - sp.rgb[2], 2));
+            if (d < 60) matches++;
+          });
+        } catch (e) { readError = String(e); }
+        callback({ sampled: sample.length, matches: matches, invalidColors: invalidColors, readError: readError });
+      });
+      map.triggerRepaint();
+    }
+
+    function scheduleSettleChecks() {
+      var token = ++replaceCounter;
+      var settledSent = false;
+      [400, 900, 1600, 2500, 4000, 6000].forEach(function(delay, attempt) {
+        setTimeout(function() {
+          if (token !== replaceCounter || settledSent) return;
+          if (!OCCURRENCE_POINTS.length || map.isMoving()) return;
+          var visibleIds = ALL_MARKER_LAYER_IDS.filter(function(id) {
+            return map.getLayer(id) && map.getLayoutProperty(id, 'visibility') !== 'none';
+          });
+          if (!visibleIds.length) return;
+          var rendered = map.queryRenderedFeatures({ layers: visibleIds }).length;
+          var individualShown = OCCURRENCE_LAYER_IDS.length > 0 &&
+            map.getLayer(OCCURRENCE_LAYER_IDS[0]) &&
+            map.getLayoutProperty(OCCURRENCE_LAYER_IDS[0], 'visibility') !== 'none';
+          var needed = 1;
+          var most = Infinity;
+          if (individualShown) {
+            needed = Math.max(1, Math.floor(countPointsOnScreen() * 0.98));
+            most = Math.ceil(OCCURRENCE_POINTS.length * 1.05);
+          }
+          mapDebugLog('replace:check +' + delay + 'ms rendered=' + rendered + ' needed=' + needed + ' points=' + OCCURRENCE_POINTS.length + ' pending=[' + pendingSummary() + ']', { rendered: rendered, needed: needed });
+          if (rendered >= needed && rendered <= most) {
+            // Counts look right; confirm against the actual pixels.
+            samplePaintedRatio(function(res) {
+              if (token !== replaceCounter || settledSent) return;
+              var ratio = res.sampled ? res.matches / res.sampled : 1;
+              mapDebugLog('replace:paint-check +' + delay + 'ms painted=' + res.matches + '/' + res.sampled + ' invalidColors=' + res.invalidColors + (res.readError ? ' readError=' + res.readError : ''), res);
+              // Too few samples (or an unreadable buffer) can't disprove it.
+              if (res.readError || res.sampled < 8 || ratio >= 0.35) {
+                settledSent = true;
+                mapDebugLog('replace:SETTLED at +' + delay + 'ms');
+                postToParent({ type: 'mapSettled', points: OCCURRENCE_POINTS.length });
+              } else {
+                mapDebugLog('replace:NOT PAINTED at +' + delay + 'ms (counts fine, pixels not) -> recovering');
+                map.panBy([1, 0], { duration: 0 });
+                map.panBy([-1, 0], { duration: 0 });
+                map.triggerRepaint();
+              }
+            });
+            return;
+          }
+          if (rendered > most) {
+            mapDebugLog('replace:OVERLAP at +' + delay + 'ms rendered=' + rendered + ' points=' + OCCURRENCE_POINTS.length + ' (stale tiles still drawn)');
+            return;
+          }
+          mapDebugLog('replace:INCOMPLETE at +' + delay + 'ms rendered=' + rendered + ' needed=' + needed + ' pending=[' + pendingSummary() + '] -> recovering', { attempt: attempt + 1, rendered: rendered, needed: needed });
+          map.panBy([1, 0], { duration: 0 });
+          map.panBy([-1, 0], { duration: 0 });
+          map.triggerRepaint();
+        }, delay);
+      });
+    }
     function mapDebugLog(label, extra) {
       if (!mapDebugEnabled()) return;
       var state = {};
@@ -454,6 +602,18 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           sourceFeatures: map.getSource('occurrences') ? map.querySourceFeatures('occurrences').length : null,
           dotLayerVisibility: (typeof OCCURRENCE_LAYER_IDS !== 'undefined' && OCCURRENCE_LAYER_IDS && OCCURRENCE_LAYER_IDS.length && map.getLayer(OCCURRENCE_LAYER_IDS[0]))
             ? map.getLayoutProperty(OCCURRENCE_LAYER_IDS[0], 'visibility') : null,
+          onScreen: countPointsOnScreen(),
+          pending: pendingSummary(),
+          // CPU-side counts above can look healthy while the GPU side is dead,
+          // so also report whether the WebGL context is lost, and JS heap use
+          // (Chrome only) to spot growth across many swaps.
+          contextLost: (function() {
+            try {
+              var gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+              return gl ? gl.isContextLost() : 'no gl';
+            } catch (e) { return 'err'; }
+          })(),
+          jsHeapMB: (typeof performance !== 'undefined' && performance.memory) ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null,
           bounds: (function() { var b = map.getBounds(); return [+b.getWest().toFixed(1), +b.getSouth().toFixed(1), +b.getEast().toFixed(1), +b.getNorth().toFixed(1)]; })(),
         };
       } catch (e) { state = { stateError: String(e) }; }
@@ -561,6 +721,19 @@ SPDX-License-Identifier: AGPL-3.0-or-later
       };
     }
 
+    // A color/style update and a points update (a new species) arrive back to
+    // back; applying the style update's refresh to the OLD points right before
+    // they are replaced just queues a redundant GeoJSON worker load whose
+    // result can race the real one. Defer it briefly so replaceOccurrencePoints
+    // (which rebuilds from the already-updated color scale) can cancel it.
+    var colorRefreshTimer = null;
+    function refreshOccurrenceMarkerColorsSoon() {
+      if (colorRefreshTimer) clearTimeout(colorRefreshTimer);
+      colorRefreshTimer = setTimeout(function() {
+        colorRefreshTimer = null;
+        refreshOccurrenceMarkerColors();
+      }, 200);
+    }
     function refreshOccurrenceMarkerColors() {
       var source = map.getSource('occurrences');
       if (!source || !OCCURRENCE_POINTS.length) return;
@@ -637,8 +810,16 @@ SPDX-License-Identifier: AGPL-3.0-or-later
     // nothing has actually changed.
     var lastClusteredHighlightKey = '';
 
+    // setFilter on a layer makes MapLibre reload that layer's source tiles, so
+    // re-applying an unchanged highlight list (every species swap on the study
+    // page sends an empty one) just churns tile reloads that overlap the real
+    // data swap and can leave tiles stale. Skip when nothing changed.
+    var lastAppliedHighlightKey = null;
     function applyHighlightsNow(catalogs) {
       var normalizedCatalogs = Array.isArray(catalogs) && catalogs.length > 0 ? catalogs.map(String) : null;
+      var appliedKey = normalizedCatalogs ? normalizedCatalogs.slice().sort().join(',') : '';
+      if (appliedKey === lastAppliedHighlightKey) return;
+      lastAppliedHighlightKey = appliedKey;
       var highlightFilter = normalizedCatalogs
         ? ['in', ['get', 'catalog'], ['literal', normalizedCatalogs]]
         : null;
@@ -980,10 +1161,10 @@ SPDX-License-Identifier: AGPL-3.0-or-later
 
     const map = new maplibregl.Map(mapOptions);
     map.on('error', function(e) {
-      mapDebugLog('map error', { message: e && e.error && e.error.message, source: e && e.sourceId });
+      mapDebugLog('replace:map error', { message: e && e.error && e.error.message, source: e && e.sourceId });
     });
-    map.getCanvas().addEventListener('webglcontextlost', function() { mapDebugLog('WEBGL CONTEXT LOST'); });
-    map.getCanvas().addEventListener('webglcontextrestored', function() { mapDebugLog('webgl context restored'); });
+    map.getCanvas().addEventListener('webglcontextlost', function() { mapDebugLog('replace:WEBGL CONTEXT LOST (map-debug context)'); });
+    map.getCanvas().addEventListener('webglcontextrestored', function() { mapDebugLog('replace:webgl context restored (map-debug context)'); });
 
     __GLOBE_RESIZE_OBSERVER_SCRIPT__
 
@@ -2052,9 +2233,12 @@ SPDX-License-Identifier: AGPL-3.0-or-later
           map.jumpTo({ center: [centerLng, centerLat], zoom: zoom });
         }
         positionMapForOccurrencePoints(validPoints);
+        scheduleSettleChecks();
 
         replaceOccurrencePointsImpl = function(newPoints, preserveViewport) {
           mapDebugLog('replace:start', { newPoints: newPoints.length, preserveViewport: !!preserveViewport });
+          if (colorRefreshTimer) { clearTimeout(colorRefreshTimer); colorRefreshTimer = null; }
+          ++replaceCounter;
           var validNewPoints = newPoints.filter(function(pt) {
             return typeof pt.latitude === 'number' && typeof pt.longitude === 'number';
           });
@@ -2091,19 +2275,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
             setTimeout(function() { mapDebugLog('replace:+300ms'); }, 300);
             setTimeout(function() { mapDebugLog('replace:+1500ms'); }, 1500);
           }
-          // Self-heal: if the map settles with points loaded but no dot drawn
-          // (the blank-until-pan state), a 1px pan makes it re-request the
-          // source's tiles for the current view, same as a manual pan does.
-          map.once('idle', function() {
-            mapDebugLog('replace:idle');
-            var ids = (typeof OCCURRENCE_LAYER_IDS !== 'undefined' && OCCURRENCE_LAYER_IDS || []).filter(function(id) { return map.getLayer(id); });
-            var individualShown = ids.length && map.getLayoutProperty(ids[0], 'visibility') !== 'none';
-            if (individualShown && OCCURRENCE_POINTS.length && map.queryRenderedFeatures({ layers: ids }).length === 0) {
-              mapDebugLog('replace:blank after idle -> nudging camera 1px');
-              map.panBy([1, 0], { duration: 0 });
-              setTimeout(function() { mapDebugLog('replace:after nudge'); }, 500);
-            }
-          });
+          scheduleSettleChecks();
         };
 
         function handleOccurrenceMarkerClick(e) {
@@ -2419,7 +2591,7 @@ SPDX-License-Identifier: AGPL-3.0-or-later
         pt.varLabel = update.varLabel || null;
         pt.varShape = update.varShape || null;
       });
-      refreshOccurrenceMarkerColors();
+      refreshOccurrenceMarkerColorsSoon();
       // The dot color refreshes for free via setData above (OCCURRENCE_POINTS
       // was just mutated in place), but a selected point's popup HTML was
       // baked once when applySelectedPoint first ran — reapply so its value/

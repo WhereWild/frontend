@@ -177,6 +177,11 @@ type SpeciesOccurrenceMapProps = {
   onPinObservation?: (catalogNumber: string, lat: number, lon: number) => void;
   /** Fires once the map document has loaded (and again after a rebuild). */
   onMapReady?: () => void;
+  /** Fires when the map has verified that it is actually drawing the current
+   * points (after initial load and after each points swap) - stricter than
+   * onMapReady / the data having arrived - and reports how many points it is
+   * showing, so a caller can ignore a stale report. Globe renderer only. */
+  onMapSettled?: (points: number) => void;
   selectedPoint?: { lat: number; lon: number; catalogNumber?: string } | null;
   onBoundsChange?: (tiles: ViewportTileRange) => void;
   // A full snapshot of currently-visible nominal classes, not an
@@ -342,6 +347,7 @@ export function SpeciesOccurrenceMap({
   allowPinObservations = true,
   onPinObservation,
   onMapReady,
+  onMapSettled,
   selectedPoint = null,
   onBoundsChange,
   onTileClasses,
@@ -487,6 +493,17 @@ export function SpeciesOccurrenceMap({
 
   const handleNativeMapMessage = React.useCallback(
     (msg: unknown) => {
+      if (
+        msg &&
+        typeof msg === 'object' &&
+        'type' in msg &&
+        msg.type === 'mapSettled'
+      ) {
+        const reported = (msg as { points?: unknown }).points;
+        onMapSettled?.(typeof reported === 'number' ? reported : -1);
+        return;
+      }
+
       if (isPinObservationMessage(msg)) {
         handlePinObservation(msg.catalogNumber, msg.latitude, msg.longitude);
         return;
@@ -594,6 +611,7 @@ export function SpeciesOccurrenceMap({
       onPolygonDrawStart,
       onPolygonDrawEnd,
       onToggleAutoAdapt,
+      onMapSettled,
     ],
   );
 
@@ -1595,6 +1613,22 @@ export function SpeciesOccurrenceMap({
       if (
         frameWindow &&
         source === frameWindow &&
+        data &&
+        typeof data === 'object' &&
+        'type' in data &&
+        data.type === 'mapSettled'
+      ) {
+        onMapSettled?.(
+          typeof (data as { points?: unknown }).points === 'number'
+            ? (data as { points: number }).points
+            : -1,
+        );
+        return;
+      }
+
+      if (
+        frameWindow &&
+        source === frameWindow &&
         renderLocalTile &&
         data &&
         typeof data === 'object' &&
@@ -1677,6 +1711,7 @@ export function SpeciesOccurrenceMap({
     settings,
     onFullscreenToggle,
     onToggleAutoAdapt,
+    onMapSettled,
     renderLocalTile,
     renderLocalPointValue,
     satelliteBackdropOnly,

@@ -37,6 +37,11 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import React from 'react';
 import { StyleSheet, View } from 'react-native';
 
+/** Longest a trial waits, once the map document has loaded and this species'
+ * data is in, for the map to verify it is drawing the dots. Generous because a
+ * fresh map (first trial) spends several seconds building itself first. */
+const SETTLE_TIMEOUT_MS = 15000;
+
 type StudyMapProps = {
   taxonId: string;
   variable: EnvironmentVariableDefinition;
@@ -61,7 +66,9 @@ type StudyMapProps = {
   onSelect?: (selection: StudySelection | null) => void;
   /** Fires once the map has loaded AND this species' occurrences and values
    * have arrived — i.e. the participant can actually see and use the map. */
-  onReady?: () => void;
+  /** `verified` is false when the map never confirmed it was drawing the dots
+   * and the wait timed out instead. */
+  onReady?: (verified: boolean) => void;
   /** Species to preload in the background (the upcoming trials). */
   prefetchTaxonIds?: readonly string[];
 };
@@ -148,17 +155,50 @@ export function StudyMap({
     return min < max ? { min, max } : null;
   }, [occurrences, observationValues]);
 
-  // Ready = the map is loaded and THIS species' data is in (not the previous
-  // species' still showing).
+  // Settled = the map has verified it is actually drawing THIS species' dots
+  // (not the previous species' stale tiles, nor a partial set), which can lag
+  // the data arriving by a second or more. The trial only starts - and the
+  // cover only lifts - once settled, with a fallback so a map that never
+  // verifies can't block a participant forever.
+  const [settled, setSettled] = React.useState<'verified' | 'timeout' | null>(
+    null,
+  );
+  const expectedPointsRef = React.useRef(-2);
+  expectedPointsRef.current = shown ? shown.occurrences.length : -2;
+  React.useEffect(() => {
+    setSettled(null);
+  }, [shown]);
+  // The fallback clock only runs once the map document is loaded and this
+  // species' data is in - not while the map is still building itself.
+  React.useEffect(() => {
+    if (!shown || !mapLoaded) return;
+    const timer = setTimeout(() => {
+      mapDebugLog('settle TIMEOUT - proceeding without verification', {
+        taxonId,
+      });
+      setSettled((current) => current ?? 'timeout');
+    }, SETTLE_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+    // `taxonId` is intentionally not a dependency: `shown` already changes
+    // with it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [shown, mapLoaded]);
+  const handleMapSettled = React.useCallback((points: number) => {
+    if (points === expectedPointsRef.current) setSettled('verified');
+  }, []);
+
+  // Ready = the map is loaded and THIS species' data is in and drawn (not the
+  // previous species' still showing).
   React.useEffect(() => {
     mapDebugLog('StudyMap state', {
       taxonId,
       mapLoaded,
       shown: shown ? shown.occurrences.length : null,
       stale,
+      settled: settled ?? 'no',
     });
-    if (mapLoaded && shown) onReady?.();
-  }, [mapLoaded, shown, onReady, taxonId, stale]);
+    if (mapLoaded && shown && settled) onReady?.(settled === 'verified');
+  }, [mapLoaded, shown, settled, onReady, taxonId, stale]);
 
   const handleMapReady = React.useCallback(() => setMapLoaded(true), []);
 
@@ -321,7 +361,11 @@ export function StudyMap({
         // rebuilding the whole map when the scheme/values change.
         preserveMapPosition
         enableBasemapModeToggle={false}
+        // The study never goes offline; the offline template is ~8 MB per map (vs
+        // 140 KB) and is re-filled with placeholders on every rebuild.
+        enableOfflineFallback={false}
         onMapReady={handleMapReady}
+        onMapSettled={handleMapSettled}
         onPinObservation={handlePin}
         selectedPoint={selectedPoint}
         observationValues={observationValues}
@@ -337,14 +381,14 @@ export function StudyMap({
         units={variable.units}
         barSvgStops={legend.barSvgStops}
       />
-      {stale && display ? (
+      {(stale || settled == null) && display ? (
         <View
           style={[
             styles.cover,
             { backgroundColor: palette.background.default.secondary },
           ]}
         >
-          <ThemedText>Loading next species…</ThemedText>
+          <ThemedText>Loading…</ThemedText>
         </View>
       ) : null}
     </View>

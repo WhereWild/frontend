@@ -52,7 +52,7 @@ export type DesignedTrial = {
 };
 
 // xmur3 string hash -> mulberry32 PRNG: small, deterministic, seedable.
-const seededRandom = (seed: string) => {
+export const seededRandom = (seed: string) => {
   let h = 1779033703 ^ seed.length;
   for (let i = 0; i < seed.length; i += 1) {
     h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
@@ -71,7 +71,7 @@ const seededRandom = (seed: string) => {
   };
 };
 
-const shuffled = <T>(items: readonly T[], random: () => number): T[] => {
+export const shuffled = <T>(items: readonly T[], random: () => number): T[] => {
   const out = [...items];
   for (let i = out.length - 1; i > 0; i -= 1) {
     const j = Math.floor(random() * (i + 1));
