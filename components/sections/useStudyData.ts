@@ -47,12 +47,15 @@ const startLoad = (
     return { taxonId, occurrences: occ.occurrences, values };
   });
 
+export type PrefetchTarget = { taxonId: string; variableId: string };
+
 type UseStudyDataParams = {
   taxonId: string;
   variableId: string;
   units: string;
-  /** Species to start loading now so they're ready when their trial starts. */
-  prefetch?: readonly string[];
+  /** Species (with the variable each will be shown for) to start loading now
+   * so they're ready when their trial starts. */
+  prefetch?: readonly PrefetchTarget[];
 };
 
 /** Loads one species' occurrences and variable values together (so the map is
@@ -70,23 +73,23 @@ export const useStudyData = ({
   const [error, setError] = React.useState<string | null>(null);
 
   const load = React.useCallback(
-    (id: string) => {
-      const key = `${id}|${variableId}|${units}`;
+    (id: string, forVariable: string) => {
+      const key = `${id}|${forVariable}|${units}`;
       let promise = cache.get(key);
       if (!promise) {
-        promise = startLoad(source, id, variableId, units);
+        promise = startLoad(source, id, forVariable, units);
         promise.catch(() => cache.delete(key));
         cache.set(key, promise);
       }
       return promise;
     },
-    [source, variableId, units],
+    [source, units],
   );
 
   React.useEffect(() => {
     let cancelled = false;
     setError(null);
-    load(taxonId)
+    load(taxonId, variableId)
       .then((result) => {
         if (!cancelled) setData(result);
       })
@@ -98,15 +101,25 @@ export const useStudyData = ({
     return () => {
       cancelled = true;
     };
-  }, [load, taxonId]);
+  }, [load, taxonId, variableId]);
 
-  const prefetchKey = prefetch.join(',');
+  const prefetchKey = prefetch
+    .map((p) => `${p.taxonId}:${p.variableId}`)
+    .join(',');
   React.useEffect(() => {
-    const ids = prefetchKey ? prefetchKey.split(',') : [];
-    for (const id of ids) load(id).catch(() => undefined);
+    const targets = prefetchKey
+      ? prefetchKey.split(',').map((entry) => {
+          const [id, forVariable] = entry.split(':');
+          return { taxonId: id, variableId: forVariable };
+        })
+      : [];
+    for (const t of targets)
+      load(t.taxonId, t.variableId).catch(() => undefined);
     // Drop the oldest entries beyond the cap, never the ones in use.
     const keep = new Set(
-      [taxonId, ...ids].map((id) => `${id}|${variableId}|${units}`),
+      [{ taxonId, variableId }, ...targets].map(
+        (t) => `${t.taxonId}|${t.variableId}|${units}`,
+      ),
     );
     for (const key of [...cache.keys()]) {
       if (cache.size <= MAX_CACHED) break;

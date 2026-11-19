@@ -17,7 +17,7 @@ import {
   type StudyColormap,
 } from '@/components/sections/studyColormap';
 import type { StudyScheme } from '@/components/sections/studyColors';
-import type { StudyViewBox } from '@/components/sections/studyPool';
+import type { StudyViewBox } from '@/components/sections/studyStageData';
 import {
   findTruth,
   scoreSelection,
@@ -25,7 +25,10 @@ import {
   type StudySelection,
 } from '@/components/sections/studyScoring';
 import { mapDebugLog } from '@/components/sections/mapDebug';
-import { useStudyData } from '@/components/sections/useStudyData';
+import {
+  useStudyData,
+  type PrefetchTarget,
+} from '@/components/sections/useStudyData';
 import { ThemedText } from '@/components/text/ThemedText';
 import { Colors } from '@/constants/theme';
 import type { EnvironmentVariableDefinition } from '@/data/types';
@@ -63,10 +66,13 @@ type StudyMapProps = {
    * participant can actually see and use the map. `verified` is false when
    * that was never confirmed and the wait timed out instead. */
   onReady?: (verified: boolean) => void;
-  /** Species to preload in the background (the upcoming trials). */
-  prefetchTaxonIds?: readonly string[];
+  /** Species (and the variable each will show) to preload in the background
+   * - the upcoming trials. */
+  prefetchTargets?: readonly PrefetchTarget[];
   /** A key was pressed while the map had focus. */
   onKey?: (key: string) => void;
+  /** Clicking a dot does nothing (no popup revealing its value). */
+  noPopups?: boolean;
 };
 
 const NO_DATA_COLOR = 'rgba(255,255,255,0.5)';
@@ -92,14 +98,15 @@ export function StudyMap({
   target,
   onSelect,
   onReady,
-  prefetchTaxonIds,
+  prefetchTargets,
   onKey,
+  noPopups = false,
 }: StudyMapProps) {
   const { data, error } = useStudyData({
     taxonId,
     variableId: variable.id,
     units,
-    prefetch: prefetchTaxonIds,
+    prefetch: prefetchTargets,
   });
   const colorScheme = useColorScheme();
   const palette = Colors[colorScheme === 'dark' ? 'dark' : 'light'];
@@ -109,15 +116,17 @@ export function StudyMap({
     if (!data || data.taxonId !== taxonId) return null;
     return {
       values: data.values,
-      occurrences: viewBox
-        ? data.occurrences.filter(
-            (o) =>
-              o.longitude >= viewBox.lonMin &&
+      // Observations with no value for this variable are not shown (or
+      // scored): they carry nothing to encode.
+      occurrences: data.occurrences.filter(
+        (o) =>
+          data.values.has(String(o.catalogNumber)) &&
+          (!viewBox ||
+            (o.longitude >= viewBox.lonMin &&
               o.longitude < viewBox.lonMax &&
               o.latitude >= viewBox.latMin &&
-              o.latitude < viewBox.latMax,
-          )
-        : data.occurrences,
+              o.latitude < viewBox.latMax)),
+      ),
     };
   }, [data, taxonId, viewBox]);
   // The map stays mounted across species; until the next one loads it keeps
@@ -220,6 +229,7 @@ export function StudyMap({
 
   const handlePin = React.useCallback(
     (catalogNumber: string, lat: number, lon: number) => {
+      if (noPopups) return;
       if (selectedPoint?.catalogNumber === catalogNumber) {
         setSelectedPoint(null);
         if (target) onSelect?.(null);
@@ -239,7 +249,7 @@ export function StudyMap({
         ),
       );
     },
-    [selectedPoint, target, onSelect, occurrences, observationValues],
+    [noPopups, selectedPoint, target, onSelect, occurrences, observationValues],
   );
 
   if (error) {

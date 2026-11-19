@@ -81,6 +81,9 @@ export const buildStudyDotMapHtml = (config: StudyDotMapConfig): string => {
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
   var canvas = document.getElementById('dots');
+  // Inside the map's own canvas container (before any popup), so popups, which
+  // are added to that container later, stack above the dots.
+  map.getCanvasContainer().appendChild(canvas);
   var ctx = canvas.getContext('2d');
   var points = [];
   var selectedId = null;

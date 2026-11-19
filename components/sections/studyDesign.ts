@@ -2,33 +2,26 @@
 //
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
-// Per-participant trial design for the visualization study: STUDY_ROUNDS
-// rounds of 4 trials, every trial on a different species drawn at random from
-// the pool, each round using one species from each entropy quartile (so spatial dispersion is evenly sampled and logged, not varied
-// as a factor). The 4 conditions are the 2x2 of colormap (viridis vs
-// coolwarm) x bounds (the species' own observed range vs the variable's
-// global range), each used exactly once per participant; which condition
-// lands on which species, the hottest/coldest question (2 of each per round)
-// and the trial order are all randomized. Seeded by the participant id, so a design
-// can be reproduced from the logged id alone.
+// Shared pieces of the study design: the 2x2 conditions (colormap x bounds) and
+// a seeded random source, so a participant's whole session can be reproduced
+// from the logged participant id alone. The session itself is built in
+// studySession.ts.
 
 import type { StudyScheme } from '@/components/sections/studyColors';
-import { STUDY_POOL, type PoolSpecies } from '@/components/sections/studyPool';
-import type { ExtremeTarget } from '@/components/sections/studyScoring';
 
-/** Rounds of 4 trials per participant (10 -> 40 trials, 40 species). */
-export const STUDY_ROUNDS = 10;
-
+/** `thematic`: the variable's own metaphor ramp; `neutral`: viridis for every
+ * variable. `observed`: the colormap spans the species' own displayed range;
+ * `global`: it spans the variable's full global range. */
 export type StudyCondition = {
-  colormap: 'viridis' | 'coolwarm';
+  colormap: 'thematic' | 'neutral';
   bounds: 'observed' | 'global';
 };
 
 export const STUDY_CONDITIONS: StudyCondition[] = [
-  { colormap: 'viridis', bounds: 'observed' },
-  { colormap: 'viridis', bounds: 'global' },
-  { colormap: 'coolwarm', bounds: 'observed' },
-  { colormap: 'coolwarm', bounds: 'global' },
+  { colormap: 'neutral', bounds: 'observed' },
+  { colormap: 'neutral', bounds: 'global' },
+  { colormap: 'thematic', bounds: 'observed' },
+  { colormap: 'thematic', bounds: 'global' },
 ];
 
 /** Everything the 2x2 holds constant. */
@@ -44,12 +37,6 @@ export const schemeFor = (condition: StudyCondition): StudyScheme => ({
   ...BASE_SCHEME,
   ...condition,
 });
-
-export type DesignedTrial = {
-  species: PoolSpecies;
-  condition: StudyCondition;
-  target: ExtremeTarget;
-};
 
 // xmur3 string hash -> mulberry32 PRNG: small, deterministic, seedable.
 export const seededRandom = (seed: string) => {
@@ -78,37 +65,4 @@ export const shuffled = <T>(items: readonly T[], random: () => number): T[] => {
     [out[i], out[j]] = [out[j], out[i]];
   }
   return out;
-};
-
-export const buildTrials = (
-  participantId: string,
-  rounds: number = STUDY_ROUNDS,
-  pool: readonly PoolSpecies[] = STUDY_POOL,
-): DesignedTrial[] => {
-  const random = seededRandom(participantId);
-  // Per quartile, `rounds` distinct species (sampling without replacement).
-  const byQuartile = ([1, 2, 3, 4] as const).map((q) =>
-    shuffled(
-      pool.filter((s) => s.q === q),
-      random,
-    ).slice(0, rounds),
-  );
-  const trials: DesignedTrial[] = [];
-  for (let round = 0; round < rounds; round += 1) {
-    const conditions = shuffled(STUDY_CONDITIONS, random);
-    const targets = shuffled<ExtremeTarget>(
-      ['hottest', 'hottest', 'coldest', 'coldest'],
-      random,
-    );
-    byQuartile.forEach((stratum, i) => {
-      if (stratum[round]) {
-        trials.push({
-          species: stratum[round],
-          condition: conditions[i],
-          target: targets[i],
-        });
-      }
-    });
-  }
-  return shuffled(trials, random);
 };

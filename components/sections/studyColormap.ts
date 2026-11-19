@@ -21,6 +21,7 @@ import {
   sampleStops,
   TEMPERATURE_VARIABLE_IDS,
   GRAY_STOPS,
+  NEUTRAL_STOPS,
   SUMMER_STOPS,
   THEMATIC_STOPS,
   VIRIDIS_UPPER_STOPS,
@@ -46,6 +47,7 @@ const NAMED_STOPS: Record<
 > = {
   coolwarm: COOLWARM_STOPS,
   viridis: COLORMAPS.viridis.stops,
+  neutral: COLORMAPS.viridis.stops,
   plasma: COLORMAPS.plasma.stops,
   magma: COLORMAPS.magma.stops,
   ylgn: YLGN_STOPS,
@@ -65,7 +67,9 @@ export const buildStudyColormap = (
   const baseStops =
     scheme.colormap === 'thematic'
       ? (THEMATIC_STOPS[variable.id] ?? COOLWARM_STOPS)
-      : NAMED_STOPS[scheme.colormap];
+      : scheme.colormap === 'neutral'
+        ? (NEUTRAL_STOPS[variable.id] ?? NAMED_STOPS.neutral)
+        : NAMED_STOPS[scheme.colormap];
   const globalRange =
     renderMin != null && renderMax != null
       ? { min: renderMin, max: renderMax }

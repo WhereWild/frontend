@@ -4,7 +4,7 @@
 
 import type { SpeciesOccurrence } from '@/data/types';
 
-export type ExtremeTarget = 'hottest' | 'coldest';
+export type ExtremeTarget = 'highest' | 'lowest';
 
 export type StudyPoint = {
   catalogNumber: string;
@@ -39,7 +39,7 @@ export const haversineKm = (
   return 2 * EARTH_RADIUS_KM * Math.asin(Math.sqrt(h));
 };
 
-/** The observation with the highest ('hottest') or lowest ('coldest') value. */
+/** The observation with the highest or lowest value. */
 export const findTruth = (
   occurrences: SpeciesOccurrence[],
   values: Map<string, number> | null,
@@ -53,7 +53,7 @@ export const findTruth = (
     if (value == null) continue;
     const better =
       best == null ||
-      (target === 'hottest'
+      (target === 'highest'
         ? value > (best.value as number)
         : value < (best.value as number));
     if (better) {

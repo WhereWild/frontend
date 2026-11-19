@@ -3,10 +3,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 
 import type { StudyScheme } from '@/components/sections/studyColors';
-import { buildComparisonTrials } from '@/components/sections/studyCompare';
-import { buildTrials, schemeFor } from '@/components/sections/studyDesign';
-import type { StudyViewBox } from '@/components/sections/studyPool';
+import type { StudyViewBox } from '@/components/sections/studyStageData';
 import type { ExtremeTarget } from '@/components/sections/studyScoring';
+import type { StudyVariableId } from '@/components/sections/studyVariables';
 
 export type StudySpecies = {
   taxonId: string;
@@ -14,71 +13,49 @@ export type StudySpecies = {
   viewBox: StudyViewBox;
 };
 
+export type StudyTask = 'single' | 'compare' | 'impression';
+
 export type StudyQuestion =
   | { kind: 'extreme'; target: ExtremeTarget }
   | {
+      /** "Can this species tolerate <the variable's high/low end>?" (yes/no).
+       * Yes when the species' own extreme on that side (1st percentile for
+       * 'low', 99th for 'high') is among the most extreme of all species. */
+      kind: 'impression';
+      pole: 'high' | 'low';
+      canTolerate: boolean;
+      /** The species' tolerance percentile (0-1, higher = more tolerant) and
+       * the extreme value it comes from. */
+      tolerancePercentile: number;
+      extremeValue: number;
+    }
+  | {
       kind: 'compare';
       /** Index into the trial's species of the one with the higher mean. */
-      hotterIndex: 0 | 1;
-      meansF: [number, number];
-      cellMeansF: [number, number];
+      higherIndex: 0 | 1;
+      /** Mean of the variable over each species' displayed observations. */
+      means: [number, number];
+      /** Same, averaged over occupied map cells. */
+      cellMeans: [number, number];
     };
 
+/** One trial of a session. A session is stages (one variable each, in random
+ * order); each stage has three blocks (single-species, comparison and impression,
+ * in random order) of equal length. */
 export type StudyTrial = {
+  variableId: StudyVariableId;
+  /** 0-based stage (variable) and block (stage x task) positions. */
+  stage: number;
+  stageCount: number;
+  blockIndex: number;
+  blockCount: number;
+  /** Position within the block (0-based) and the block's length. */
+  indexInBlock: number;
+  blockLength: number;
+  task: StudyTask;
   species: StudySpecies[];
   question: StudyQuestion;
   scheme: StudyScheme;
   /** Logged with the response (what the design assigned this trial). */
   design: Record<string, unknown>;
 };
-
-/** Single-species trials: click the hottest/coldest dot. */
-export const singleSpeciesTrials = (participantId: string): StudyTrial[] =>
-  buildTrials(participantId).map((t) => ({
-    species: [
-      {
-        taxonId: t.species.id,
-        label: t.species.name,
-        viewBox: t.species.viewBox,
-      },
-    ],
-    question: { kind: 'extreme', target: t.target },
-    scheme: schemeFor(t.condition),
-    design: {
-      seed: participantId,
-      condition: t.condition,
-      entropy: t.species.entropy,
-      entropyQuartile: t.species.q,
-      spreadF: t.species.spreadF,
-      poolObservationCount: t.species.n,
-      viewBox: t.species.viewBox,
-    },
-  }));
-
-/** Comparison trials: which of two species is hotter on average. */
-export const comparisonTrials = (participantId: string): StudyTrial[] =>
-  buildComparisonTrials(participantId).map((t) => {
-    const [left, right] = t.species;
-    return {
-      species: t.species.map((s) => ({
-        taxonId: s.id,
-        label: s.name,
-        viewBox: s.viewBox,
-      })),
-      question: {
-        kind: 'compare',
-        hotterIndex: t.hotterIndex,
-        meansF: [left.meanF, right.meanF],
-        cellMeansF: [left.cellMeanF, right.cellMeanF],
-      },
-      scheme: schemeFor(t.condition),
-      design: {
-        seed: participantId,
-        condition: t.condition,
-        spreadF: [left.spreadF, right.spreadF],
-        entropy: [left.entropy, right.entropy],
-        poolObservationCount: [left.n, right.n],
-        viewBoxes: [left.viewBox, right.viewBox],
-      },
-    };
-  });

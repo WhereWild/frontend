@@ -138,12 +138,28 @@ export const SUMMER_STOPS: RGB[] = [
 ];
 
 /** Per-variable thematic ramps (the `thematic` colormap): a metaphor for what
- * the variable is, low -> high. Variables absent here (the temperatures) use
- * coolwarm under `thematic`. */
+ * the variable is, low -> high. The control variable (cfvo, coarse soil
+ * fragments) has no real metaphor, so its ramp is arbitrary on purpose. */
 export const THEMATIC_STOPS: Record<string, RGB[]> = {
+  bio1: COOLWARM_STOPS, // temperature: blue (cold) -> red (hot)
+  cfvo: twoColorStops('#fde0dd', '#7a0177'), // control: arbitrary pale pink -> purple
   scdur: twoColorStops(BROWN, '#ffffff'), // snow duration (days): brown -> white
-  bio12: twoColorStops(BROWN, '#1f6fe0'), // annual precipitation: brown -> blue
-  direct_sun: twoColorStops('#000000', '#ffe600'), // direct sunlight: black -> yellow
+  // annual precipitation: Schloss lab pair with the strongest water association
+  // at lightness span 50 (#72005e -> #4dc7e8; endpoint ratings 0.06 -> 0.86)
+  bio12: twoColorStops('#72005e', '#4dc7e8'),
+  // direct sunlight: Schloss lab pair with the strongest sunshine association
+  // (black -> #fcdb42; endpoint ratings 0.01 -> 0.93)
+  rsdsmean: twoColorStops('#000000', '#fcdb42'),
+};
+
+/** Per-variable override of the `neutral` colormap (default: viridis). */
+export const NEUTRAL_STOPS: Record<string, RGB[]> = {
+  // Same lightness span as the thematic pair (black -> L 88) but a weak sunshine
+  // association (endpoint ratings 0.01 -> 0.34): black -> #73f5b0.
+  rsdsmean: twoColorStops('#000000', '#73f5b0'),
+  // Same dark end and lightness span (50) as the thematic pair, but no water
+  // association at either end (ratings 0.06 -> 0.05): #72005e -> #f1a78a.
+  bio12: twoColorStops('#72005e', '#f1a78a'),
 };
 
 /** The variables whose values are temperatures, i.e. the only ones the fixed
@@ -162,7 +178,9 @@ export const CUSTOM_BOUNDS_F = {
 };
 
 /** One study color configuration — the experiment's independent variables.
- * - colormap: coolwarm, plain viridis, plasma or magma, `viridisUpper` (the green ->
+ * - colormap: `thematic` (the variable's own metaphor ramp) or `neutral`
+ *   (viridis, the same for every variable), as used by the study stages;
+ *   also coolwarm, plain viridis, plasma or magma, `viridisUpper` (the green ->
  *   yellow part of viridis: sequential, perceptually uniform, no red/orange
  *   or blue/cyan hues), `summer` (matplotlib's green -> yellow), `gray` (dark = low -> light = high; no
  *   hue at all), `ylgn` (matplotlib's YlGn with its
@@ -202,6 +220,7 @@ export type StudyScheme = {
     | 'gray'
     | 'viridisUpper'
     | 'summer'
+    | 'neutral'
     | 'thematic';
   bounds: 'global' | 'observed' | 'custom' | 'custom2';
   observedLumSat: boolean;
